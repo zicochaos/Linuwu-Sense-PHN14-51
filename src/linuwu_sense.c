@@ -10,7 +10,8 @@
  */
 
  #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
+ 
+ #include <linux/delay.h>
  #include <linux/kernel.h>
  #include <linux/module.h>
  #include <linux/init.h>
@@ -2265,17 +2266,28 @@ enum acer_wmi_predator_v4_oc {
      .profile_set = acer_predator_v4_platform_profile_set,
  };
  
- static int acer_platform_profile_setup(struct platform_device *device)
+ static int acer_platform_profile_setup(struct platform_device *pdev)
  {
-     if (quirks->predator_v4 || quirks->nitro_sense || quirks->nitro_v4) {
+     const int max_retries = 10;
+     int delay_ms = 100;
+     if (!quirks->predator_v4 && !quirks->nitro_sense && !quirks->nitro_v4)
+         return 0;
+     for (int attempt = 1; attempt <= max_retries; attempt++) {
          platform_profile_device = devm_platform_profile_register(
-             &device->dev, "acer-wmi", NULL, &acer_predator_v4_platform_profile_ops);
-         if (IS_ERR(platform_profile_device))
-             return PTR_ERR(platform_profile_device);
- 
-         platform_profile_support = true;
+             &pdev->dev, "acer-wmi", NULL, &acer_predator_v4_platform_profile_ops);
+         if (!IS_ERR(platform_profile_device)) {
+             platform_profile_support = true;
+             pr_info("Platform profile registered successfully (attempt %d)\n", attempt);
+             return 0;
+         }
+         pr_warn("Platform profile registration failed (attempt %d/%d), error: %ld\n",
+                 attempt, max_retries, PTR_ERR(platform_profile_device));
+         if (attempt < max_retries) {
+             msleep(delay_ms);
+             delay_ms = min(delay_ms * 2, 1000);
+         }
      }
-     return 0;
+     return PTR_ERR(platform_profile_device);
  }
  
  static int acer_thermal_profile_change(void)
