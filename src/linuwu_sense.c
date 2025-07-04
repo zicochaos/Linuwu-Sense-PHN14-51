@@ -426,6 +426,7 @@ enum acer_wmi_predator_v4_oc {
          interface->capability |= ACER_CAP_TURBO_OC | ACER_CAP_TURBO_LED
                       | ACER_CAP_TURBO_FAN;
  
+    /* Some acer nitro laptops don't have features like lcd override , boot animation sound so this is used. Think wisely before using any quirks validate your features. */
      if (quirks->nitro_sense)
          interface->capability |= ACER_CAP_PLATFORM_PROFILE | ACER_CAP_FAN_SPEED_READ | ACER_CAP_NITRO_SENSE;
  
@@ -433,9 +434,10 @@ enum acer_wmi_predator_v4_oc {
          interface->capability |= ACER_CAP_PLATFORM_PROFILE |
                       ACER_CAP_FAN_SPEED_READ | ACER_CAP_PREDATOR_SENSE;
      
+     /* Includes all feature that predatorv4 have*/
      if (quirks->nitro_v4)
          interface->capability |= ACER_CAP_PLATFORM_PROFILE |
-                 ACER_CAP_FAN_SPEED_READ | ACER_CAP_PREDATOR_SENSE | ACER_CAP_NITRO_SENSE_V4;
+                 ACER_CAP_FAN_SPEED_READ  | ACER_CAP_NITRO_SENSE_V4;
  }
  
  static int __init dmi_matched(const struct dmi_system_id *dmi)
@@ -489,6 +491,12 @@ enum acer_wmi_predator_v4_oc {
     .nitro_v4 = 1,
     .four_zone_kb = 1,
  };
+ 
+ static struct quirk_entry quirk_acer_nitro_an515_58 = {
+    .nitro_v4 = 1,
+    .four_zone_kb = 1,
+ };
+
 
  static struct quirk_entry quirk_acer_nitro = {
      .nitro_sense = 1,
@@ -570,6 +578,15 @@ enum acer_wmi_predator_v4_oc {
          },
          .driver_data = &quirk_acer_nitro_an16_43,
      },
+     {
+        .callback = dmi_matched,
+        .ident = "Acer Nitro AN515-58",
+        .matches = {
+            DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+            DMI_MATCH(DMI_PRODUCT_NAME, "Nitro AN515-58"),
+        },
+        .driver_data = &quirk_acer_nitro_an515_58,
+    },
      {
          .callback = dmi_matched,
          .ident = "Acer Nitro AN16-41",
@@ -2632,7 +2649,7 @@ enum acer_wmi_predator_v4_oc {
              acer_thermal_profile_change();
          break;
      case WMID_AC_EVENT:
-         if(has_cap(ACER_CAP_PREDATOR_SENSE)){
+         if(has_cap(ACER_CAP_PREDATOR_SENSE) || has_cap(ACER_CAP_NITRO_SENSE_V4)){
              if(return_value.key_num == 0){
                  /* store the current state when it is connected to AC*/
                  acer_predator_state_update(1);
@@ -3531,12 +3548,14 @@ enum acer_wmi_predator_v4_oc {
  static struct attribute_group nitro_sense_v4_attr_group = {
      .name = "nitro_sense", .attrs = predator_sense_attrs
  };
+ 
  /* nitro sense attributes */
  static struct attribute *nitro_sense_attrs[] = {
      &fan_speed.attr,
      &battery_limiter.attr,
      &battery_calibration.attr,
      &usb_charging.attr,
+     &backlight_timeout.attr,
      NULL
  }; 
  static struct attribute_group nitro_sense_attr_group = {
@@ -4015,13 +4034,13 @@ enum acer_wmi_predator_v4_oc {
              goto error_platform_profile;
      }
  
-     if (has_cap(ACER_CAP_PREDATOR_SENSE) & !has_cap(ACER_CAP_NITRO_SENSE_V4)) {
+     if (has_cap(ACER_CAP_PREDATOR_SENSE)) {
          err = sysfs_create_group(&device->dev.kobj, &preadtor_sense_attr_group);
          if (err)
              goto error_predator_sense;
          acer_predator_state_load();
      }
-     if (has_cap(ACER_CAP_PREDATOR_SENSE) & has_cap(ACER_CAP_NITRO_SENSE_V4)) {
+     if (has_cap(ACER_CAP_NITRO_SENSE_V4)) {
          err = sysfs_create_group(&device->dev.kobj, &nitro_sense_v4_attr_group);
          if (err)
              goto error_predator_sense;
@@ -4074,11 +4093,15 @@ enum acer_wmi_predator_v4_oc {
          acer_led_exit();
      if (has_cap(ACER_CAP_BRIGHTNESS))
          acer_backlight_exit();
-     if (has_cap(ACER_CAP_PREDATOR_SENSE) & !has_cap(ACER_CAP_NITRO_SENSE_V4)) {
+     if (has_cap(ACER_CAP_PREDATOR_SENSE)) {
          sysfs_remove_group(&device->dev.kobj, &preadtor_sense_attr_group);
          acer_predator_state_save();
      }
-     if (has_cap(ACER_CAP_PREDATOR_SENSE) & has_cap(ACER_CAP_NITRO_SENSE_V4)) {
+     if (has_cap(ACER_CAP_NITRO_SENSE)) {
+        sysfs_remove_group(&device->dev.kobj, &nitro_sense_v4_attr_group);
+        acer_predator_state_save();
+     }
+     if (has_cap(ACER_CAP_NITRO_SENSE_V4)) {
          sysfs_remove_group(&device->dev.kobj, &nitro_sense_v4_attr_group);
          acer_predator_state_save();
      }
