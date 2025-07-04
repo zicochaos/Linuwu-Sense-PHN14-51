@@ -2668,7 +2668,7 @@ enum acer_wmi_predator_v4_oc {
      case WMID_BATTERY_BOOST_EVENT:
          break;
      case WMID_CALIBRATION_EVENT:
-         if(has_cap(ACER_CAP_PREDATOR_SENSE)){
+         if(has_cap(ACER_CAP_PREDATOR_SENSE) || has_cap(ACER_CAP_NITRO_SENSE) || has_cap(ACER_CAP_NITRO_SENSE_V4)){
              if (battery_health_set(CALIBRATION_MODE,return_value.key_num) != AE_OK){
                  pr_err("Error changing calibration state\n");
              }
