@@ -1,0 +1,376 @@
+#!/bin/bash
+#
+# Predator Keyboard RGB Control Script
+# Controls RGB lighting for 4-zone keyboard
+#
+# Usage: predator-keyboard {static|breathe|wave|fade|zoom|profiles|zone|brightness|help}
+
+FOUR_ZONE_PATH="/sys/devices/platform/acer-wmi/four_zoned_kb/four_zone_mode"
+PER_ZONE_PATH="/sys/devices/platform/acer-wmi/four_zoned_kb/per_zone_mode"
+
+# Check if sysfs interfaces exist
+if [ ! -f "$FOUR_ZONE_PATH" ] || [ ! -f "$PER_ZONE_PATH" ]; then
+    echo "Error: Keyboard RGB interfaces not found!"
+    echo "Make sure the linuwu_sense module is loaded."
+    exit 1
+fi
+
+# RGB Modes
+MODE_STATIC=0
+MODE_BREATHE=1
+MODE_NEON=2
+MODE_WAVE=3
+MODE_SHIFT=4
+MODE_ZOOM=5
+MODE_CUSTOM=6
+
+# Speed levels
+SPEED_SLOW=0
+SPEED_MEDIUM=1
+SPEED_FAST=2
+
+# Direction for wave/shift effects
+DIR_LEFT=0
+DIR_RIGHT=1
+
+# Convert hex color to RGB
+hex_to_rgb() {
+    local hex="${1#\#}"  # Remove # if present
+    printf "%d,%d,%d" 0x${hex:0:2} 0x${hex:2:2} 0x${hex:4:2}
+}
+
+# Convert RGB to hex
+rgb_to_hex() {
+    printf "%02x%02x%02x" $1 $2 $3
+}
+
+# Get current keyboard status
+get_status() {
+    local four_zone=$(cat $FOUR_ZONE_PATH)
+    local per_zone=$(cat $PER_ZONE_PATH)
+    
+    echo "Keyboard RGB Status:"
+    echo ""
+    
+    # Parse four zone mode data
+    IFS=',' read -r mode speed brightness direction red green blue <<< "$four_zone"
+    
+    echo "Mode Settings:"
+    case $mode in
+        0) echo "  Mode: STATIC" ;;
+        1) echo "  Mode: BREATHE" ;;
+        2) echo "  Mode: NEON" ;;
+        3) echo "  Mode: WAVE" ;;
+        4) echo "  Mode: SHIFT" ;;
+        5) echo "  Mode: ZOOM" ;;
+        6) echo "  Mode: CUSTOM" ;;
+        *) echo "  Mode: UNKNOWN ($mode)" ;;
+    esac
+    
+    case $speed in
+        0) echo "  Speed: SLOW" ;;
+        1) echo "  Speed: MEDIUM" ;;
+        2) echo "  Speed: FAST" ;;
+        *) echo "  Speed: $speed" ;;
+    esac
+    
+    echo "  Brightness: $brightness%"
+    
+    if [ "$mode" -eq 3 ] || [ "$mode" -eq 4 ]; then
+        case $direction in
+            0) echo "  Direction: LEFT" ;;
+            1) echo "  Direction: RIGHT" ;;
+            *) echo "  Direction: $direction" ;;
+        esac
+    fi
+    
+    local hex_color=$(rgb_to_hex $red $green $blue)
+    echo "  Color: #$hex_color (RGB: $red,$green,$blue)"
+    
+    echo ""
+    echo "Per-Zone Colors:"
+    IFS=',' read -r zone1 zone2 zone3 zone4 brightness <<< "$per_zone"
+    echo "  Zone 1: #$zone1"
+    echo "  Zone 2: #$zone2"
+    echo "  Zone 3: #$zone3"
+    echo "  Zone 4: #$zone4"
+    echo "  Brightness: $brightness%"
+}
+
+# Set keyboard mode
+set_mode() {
+    local mode=$1
+    local speed=${2:-1}  # Default medium speed
+    local brightness=${3:-100}  # Default full brightness
+    local direction=${4:-0}  # Default left direction
+    local red=${5:-255}  # Default white
+    local green=${6:-255}
+    local blue=${7:-255}
+    
+    echo "$mode,$speed,$brightness,$direction,$red,$green,$blue" | sudo tee $FOUR_ZONE_PATH > /dev/null
+    if [ $? -eq 0 ]; then
+        return 0
+    else
+        echo "Failed to set keyboard mode"
+        return 1
+    fi
+}
+
+# Set per-zone colors
+set_zones() {
+    local zone1=$1
+    local zone2=$2
+    local zone3=$3
+    local zone4=$4
+    local brightness=${5:-100}
+    
+    echo "$zone1,$zone2,$zone3,$zone4,$brightness" | sudo tee $PER_ZONE_PATH > /dev/null
+    if [ $? -eq 0 ]; then
+        return 0
+    else
+        echo "Failed to set zone colors"
+        return 1
+    fi
+}
+
+case "$1" in
+    static)
+        if [ $# -eq 1 ]; then
+            echo "Setting keyboard to STATIC mode (white)"
+            set_mode $MODE_STATIC 0 100 0 255 255 255
+        elif [ $# -eq 2 ]; then
+            # Color provided as hex
+            RGB=$(hex_to_rgb "$2")
+            IFS=',' read -r r g b <<< "$RGB"
+            echo "Setting keyboard to STATIC mode (color: $2)"
+            set_mode $MODE_STATIC 0 100 0 $r $g $b
+        elif [ $# -eq 4 ]; then
+            # RGB values provided
+            echo "Setting keyboard to STATIC mode (RGB: $2,$3,$4)"
+            set_mode $MODE_STATIC 0 100 0 $2 $3 $4
+        else
+            echo "Usage: $0 static [hex_color | r g b]"
+            echo "Example: $0 static #ff0000"
+            echo "Example: $0 static 255 0 0"
+            exit 1
+        fi
+        ;;
+    
+    breathe)
+        SPEED=${2:-1}  # Default medium
+        if [ $# -ge 3 ]; then
+            if [[ "$3" =~ ^#[0-9A-Fa-f]{6}$ ]]; then
+                IFS=',' read -r r g b <<< $(hex_to_rgb "$3")
+            else
+                r=$3; g=${4:-255}; b=${5:-255}
+            fi
+        else
+            r=255; g=255; b=255
+        fi
+        echo "Setting keyboard to BREATHE mode"
+        set_mode $MODE_BREATHE $SPEED 100 0 $r $g $b
+        ;;
+    
+    wave)
+        SPEED=${2:-1}  # Default medium
+        DIR=${3:-0}    # Default left
+        if [ "$DIR" = "left" ]; then DIR=0; elif [ "$DIR" = "right" ]; then DIR=1; fi
+        echo "Setting keyboard to WAVE mode"
+        set_mode $MODE_WAVE $SPEED 100 $DIR 255 255 255
+        ;;
+    
+    neon)
+        SPEED=${2:-1}  # Default medium
+        echo "Setting keyboard to NEON mode"
+        set_mode $MODE_NEON $SPEED 100 0 255 255 255
+        ;;
+    
+    shift)
+        SPEED=${2:-1}  # Default medium
+        DIR=${3:-0}    # Default left
+        if [ "$DIR" = "left" ]; then DIR=0; elif [ "$DIR" = "right" ]; then DIR=1; fi
+        echo "Setting keyboard to SHIFT mode"
+        set_mode $MODE_SHIFT $SPEED 100 $DIR 255 255 255
+        ;;
+    
+    zoom)
+        SPEED=${2:-1}  # Default medium
+        echo "Setting keyboard to ZOOM mode"
+        set_mode $MODE_ZOOM $SPEED 100 0 255 255 255
+        ;;
+    
+    zone)
+        if [ $# -lt 5 ]; then
+            echo "Usage: $0 zone <zone1_color> <zone2_color> <zone3_color> <zone4_color> [brightness]"
+            echo "Colors can be hex (#rrggbb) format"
+            echo "Example: $0 zone #ff0000 #00ff00 #0000ff #ffff00"
+            echo "Example: $0 zone #ff0000 #00ff00 #0000ff #ffff00 75"
+            exit 1
+        fi
+        
+        # Convert hex colors to format expected by sysfs
+        ZONE1="${2#\#}"
+        ZONE2="${3#\#}"
+        ZONE3="${4#\#}"
+        ZONE4="${5#\#}"
+        BRIGHTNESS=${6:-100}
+        
+        echo "Setting per-zone colors:"
+        echo "  Zone 1: #$ZONE1"
+        echo "  Zone 2: #$ZONE2"
+        echo "  Zone 3: #$ZONE3"
+        echo "  Zone 4: #$ZONE4"
+        echo "  Brightness: $BRIGHTNESS%"
+        
+        set_zones $ZONE1 $ZONE2 $ZONE3 $ZONE4 $BRIGHTNESS
+        ;;
+    
+    brightness)
+        if [ $# -ne 2 ]; then
+            echo "Usage: $0 brightness <0-100>"
+            exit 1
+        fi
+        
+        BRIGHTNESS=$2
+        if [ $BRIGHTNESS -lt 0 ] || [ $BRIGHTNESS -gt 100 ]; then
+            echo "Brightness must be between 0 and 100"
+            exit 1
+        fi
+        
+        # Get current mode settings
+        IFS=',' read -r mode speed _ direction red green blue <<< $(cat $FOUR_ZONE_PATH)
+        
+        echo "Setting brightness to $BRIGHTNESS%"
+        set_mode $mode $speed $BRIGHTNESS $direction $red $green $blue
+        ;;
+    
+    profiles)
+        echo "Available Color Profiles:"
+        echo ""
+        echo "Gaming profiles:"
+        echo "  $0 profile-gaming       # Red zones for WASD, blue for others"
+        echo "  $0 profile-fps          # Highlight FPS keys"
+        echo "  $0 profile-moba         # Highlight QWER and numbers"
+        echo ""
+        echo "Productivity profiles:"
+        echo "  $0 profile-coding       # Subtle white with highlighted F-keys"
+        echo "  $0 profile-typing       # Warm white for comfortable typing"
+        echo ""
+        echo "Aesthetic profiles:"
+        echo "  $0 profile-rainbow      # Rainbow across zones"
+        echo "  $0 profile-fire         # Fire gradient"
+        echo "  $0 profile-ocean        # Ocean blues"
+        echo "  $0 profile-forest       # Forest greens"
+        echo "  $0 profile-sunset       # Sunset gradient"
+        echo "  $0 profile-cyberpunk    # Cyan and magenta"
+        ;;
+    
+    profile-gaming)
+        echo "Applying GAMING profile (red WASD zone, blue others)"
+        set_zones ff0000 0080ff 0080ff 0080ff 100
+        ;;
+    
+    profile-fps)
+        echo "Applying FPS profile (highlight movement and weapon keys)"
+        set_zones ff0000 ffaa00 00ff00 ffffff 100
+        ;;
+    
+    profile-moba)
+        echo "Applying MOBA profile (highlight abilities)"
+        set_zones ffff00 00ffff ff00ff ffffff 100
+        ;;
+    
+    profile-coding)
+        echo "Applying CODING profile (subtle with highlighted F-keys)"
+        set_zones 808080 808080 808080 00ffff 60
+        ;;
+    
+    profile-typing)
+        echo "Applying TYPING profile (warm white)"
+        set_zones ffeecc ffeecc ffeecc ffeecc 70
+        ;;
+    
+    profile-rainbow)
+        echo "Applying RAINBOW profile"
+        set_zones ff0000 ffff00 00ff00 0000ff 100
+        ;;
+    
+    profile-fire)
+        echo "Applying FIRE profile"
+        set_zones ff0000 ff6600 ffaa00 ffff00 100
+        ;;
+    
+    profile-ocean)
+        echo "Applying OCEAN profile"
+        set_zones 001a33 004080 0066cc 00aaff 100
+        ;;
+    
+    profile-forest)
+        echo "Applying FOREST profile"
+        set_zones 003300 006600 009900 00cc00 100
+        ;;
+    
+    profile-sunset)
+        echo "Applying SUNSET profile"
+        set_zones ff00aa ff0066 ff6600 ffaa00 100
+        ;;
+    
+    profile-cyberpunk)
+        echo "Applying CYBERPUNK profile"
+        set_zones ff00ff 00ffff ff00ff 00ffff 100
+        ;;
+    
+    off)
+        echo "Turning keyboard backlight OFF"
+        set_mode $MODE_STATIC 0 0 0 0 0 0
+        ;;
+    
+    status)
+        get_status
+        ;;
+    
+    help|--help|-h)
+        echo "Predator Keyboard RGB Control"
+        echo ""
+        echo "Usage: $0 {command} [options]"
+        echo ""
+        echo "Effect Modes:"
+        echo "  static [color]          - Static color (hex or RGB)"
+        echo "  breathe [speed] [color] - Breathing effect"
+        echo "  wave [speed] [dir]      - Wave effect"
+        echo "  neon [speed]            - Neon effect"
+        echo "  shift [speed] [dir]     - Shift effect"
+        echo "  zoom [speed]            - Zoom effect"
+        echo ""
+        echo "Zone Control:"
+        echo "  zone <c1> <c2> <c3> <c4> [brightness] - Set per-zone colors"
+        echo ""
+        echo "Settings:"
+        echo "  brightness <0-100>      - Set brightness"
+        echo "  off                     - Turn backlight off"
+        echo "  status                  - Show current settings"
+        echo ""
+        echo "Profiles:"
+        echo "  profiles                - List available profiles"
+        echo "  profile-<name>          - Apply a preset profile"
+        echo ""
+        echo "Parameters:"
+        echo "  speed: 0=slow, 1=medium, 2=fast"
+        echo "  direction: left, right"
+        echo "  color: #rrggbb or r g b values"
+        echo ""
+        echo "Examples:"
+        echo "  $0 static #ff0000               # Red static"
+        echo "  $0 breathe 1 #00ff00             # Medium breathe, green"
+        echo "  $0 wave 2 right                  # Fast wave to right"
+        echo "  $0 zone #ff0000 #00ff00 #0000ff #ffff00  # 4 zones"
+        echo "  $0 brightness 75                 # 75% brightness"
+        echo "  $0 profile-gaming                # Gaming profile"
+        ;;
+    
+    *)
+        echo "Usage: $0 {static|breathe|wave|neon|shift|zoom|zone|brightness|profiles|off|status|help}"
+        echo "Try '$0 help' for more information"
+        exit 1
+        ;;
+esac

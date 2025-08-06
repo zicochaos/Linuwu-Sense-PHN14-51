@@ -8,6 +8,7 @@
 PROFILE_SCRIPT="/home/sbochna/Projects/Linuwu-Sense-PHN14-51/predator-profile"
 FAN_SCRIPT="/home/sbochna/Projects/Linuwu-Sense-PHN14-51/predator-fan"
 BATTERY_SCRIPT="/home/sbochna/Projects/Linuwu-Sense-PHN14-51/predator-battery"
+KEYBOARD_SCRIPT="/home/sbochna/Projects/Linuwu-Sense-PHN14-51/predator-keyboard"
 
 # Make sure scripts exist
 if [ ! -x "$PROFILE_SCRIPT" ]; then
@@ -22,15 +23,21 @@ if [ ! -x "$BATTERY_SCRIPT" ]; then
     BATTERY_SCRIPT="$(dirname $0)/predator-battery"
 fi
 
+if [ ! -x "$KEYBOARD_SCRIPT" ]; then
+    KEYBOARD_SCRIPT="$(dirname $0)/predator-keyboard"
+fi
+
 case "$1" in
     silent)
         echo "Applying SILENT preset..."
         echo "  - Power: Quiet mode (60W)"
         echo "  - Fans: Auto (minimum noise)"
         echo "  - Battery: Limiter enabled (80%)"
+        echo "  - Keyboard: Dim white (30%)"
         $PROFILE_SCRIPT quiet
         $FAN_SCRIPT auto
         $BATTERY_SCRIPT enable > /dev/null 2>&1
+        $KEYBOARD_SCRIPT brightness 30 > /dev/null 2>&1
         echo ""
         echo "Silent preset applied - Minimal power and noise, battery protected"
         ;;
@@ -40,9 +47,12 @@ case "$1" in
         echo "  - Power: Balanced mode (80W)"
         echo "  - Fans: Auto"
         echo "  - Battery: Limiter enabled (80%)"
+        echo "  - Keyboard: White (70%)"
         $PROFILE_SCRIPT balanced
         $FAN_SCRIPT auto
         $BATTERY_SCRIPT enable > /dev/null 2>&1
+        $KEYBOARD_SCRIPT static #ffffff > /dev/null 2>&1
+        $KEYBOARD_SCRIPT brightness 70 > /dev/null 2>&1
         echo ""
         echo "Normal preset applied - Balanced performance, battery protected"
         ;;
@@ -52,9 +62,11 @@ case "$1" in
         echo "  - Power: Performance mode (100W)"
         echo "  - Fans: Custom (60% CPU, 70% GPU)"
         echo "  - Battery: Limiter disabled (100%)"
+        echo "  - Keyboard: Gaming RGB profile"
         $PROFILE_SCRIPT performance
         $FAN_SCRIPT custom 60 70
         $BATTERY_SCRIPT disable > /dev/null 2>&1
+        $KEYBOARD_SCRIPT profile-gaming > /dev/null 2>&1
         echo ""
         echo "Gaming preset applied - High performance, full battery available"
         ;;
@@ -64,9 +76,11 @@ case "$1" in
         echo "  - Power: Turbo mode (125W)"
         echo "  - Fans: Maximum (100%)"
         echo "  - Battery: Limiter disabled (100%)"
+        echo "  - Keyboard: Fire effect (100%)"
         $PROFILE_SCRIPT turbo
         $FAN_SCRIPT max
         $BATTERY_SCRIPT disable > /dev/null 2>&1
+        $KEYBOARD_SCRIPT profile-fire > /dev/null 2>&1
         echo ""
         echo "EXTREME preset applied - Maximum everything!"
         echo "Warning: This will be LOUD and consume maximum power!"
@@ -77,9 +91,11 @@ case "$1" in
         echo "  - Power: Balanced mode (80W)"
         echo "  - Fans: Auto"
         echo "  - Battery: Limiter disabled (100% for maximum runtime)"
+        echo "  - Keyboard: Off (save battery)"
         $PROFILE_SCRIPT balanced
         $FAN_SCRIPT auto
         $BATTERY_SCRIPT disable > /dev/null 2>&1
+        $KEYBOARD_SCRIPT off > /dev/null 2>&1
         echo ""
         echo "Travel preset applied - Balanced performance, maximum battery"
         ;;
@@ -137,11 +153,11 @@ case "$1" in
         echo "Usage: $0 {silent|normal|gaming|extreme|travel|custom|status}"
         echo ""
         echo "Presets:"
-        echo "  silent  - Quiet (60W) + Auto fans + 80% battery limit"
-        echo "  normal  - Balanced (80W) + Auto fans + 80% battery limit"
-        echo "  gaming  - Performance (100W) + 60/70% fans + 100% battery"
-        echo "  extreme - Turbo (125W) + Max fans + 100% battery"
-        echo "  travel  - Balanced (80W) + Auto fans + 100% battery"
+        echo "  silent  - Quiet (60W) + Auto fans + 80% battery + Dim keyboard"
+        echo "  normal  - Balanced (80W) + Auto fans + 80% battery + White keyboard"
+        echo "  gaming  - Performance (100W) + 60/70% fans + 100% battery + Gaming RGB"
+        echo "  extreme - Turbo (125W) + Max fans + 100% battery + Fire RGB"
+        echo "  travel  - Balanced (80W) + Auto fans + 100% battery + Keyboard off"
         echo "  custom  - Set custom profile, fans, and battery"
         echo "  status  - Show current settings"
         echo ""

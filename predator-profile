@@ -162,8 +162,25 @@ case "$1" in
             exit 1
         fi
         ;;
+    kb-*)
+        # Pass keyboard commands to predator-keyboard script
+        KB_SCRIPT="/home/sbochna/Projects/Linuwu-Sense-PHN14-51/predator-keyboard"
+        if [ ! -x "$KB_SCRIPT" ]; then
+            KB_SCRIPT="$(dirname $0)/predator-keyboard"
+        fi
+        
+        if [ ! -x "$KB_SCRIPT" ]; then
+            echo "Keyboard control script not found"
+            exit 1
+        fi
+        
+        # Extract keyboard command (remove kb- prefix)
+        KB_CMD="${1#kb-}"
+        shift
+        $KB_SCRIPT $KB_CMD "$@"
+        ;;
     *)
-        echo "Usage: $0 {quiet|balanced|performance|turbo|status|fan-auto|fan-max|fan-custom|battery-enable|battery-disable}"
+        echo "Usage: $0 {quiet|balanced|performance|turbo|status|fan-auto|fan-max|fan-custom|battery-enable|battery-disable|kb-<command>}"
         echo ""
         echo "Power Profiles:"
         echo "  quiet           - 60W GPU power limit (power saving)"
@@ -181,11 +198,22 @@ case "$1" in
         echo "  battery-enable  - Enable 80% charge limit (extend battery life)"
         echo "  battery-disable - Disable limit (charge to 100%)"
         echo ""
+        echo "Keyboard RGB Control:"
+        echo "  kb-static       - Static color mode"
+        echo "  kb-breathe      - Breathing effect"
+        echo "  kb-wave         - Wave effect"
+        echo "  kb-zone         - Set per-zone colors"
+        echo "  kb-profiles     - List RGB profiles"
+        echo "  kb-status       - Show RGB status"
+        echo "  kb-help         - Full keyboard help"
+        echo ""
         echo "Examples:"
         echo "  $0 turbo              # Set to turbo mode"
         echo "  $0 fan-max            # Set fans to 100%"
         echo "  $0 fan-custom 50 70   # Set CPU fan to 50%, GPU to 70%"
         echo "  $0 battery-enable     # Limit charging to 80%"
+        echo "  $0 kb-static #ff0000  # Set keyboard to red"
+        echo "  $0 kb-profile-gaming  # Apply gaming RGB profile"
         exit 1
         ;;
 esac
