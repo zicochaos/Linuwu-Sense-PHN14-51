@@ -19,6 +19,7 @@
 
 SYSFS_PATH="/sys/devices/platform/acer-wmi/predator_sense/power_profile"
 FAN_PATH="/sys/devices/platform/acer-wmi/predator_sense/fan_speed"
+BATTERY_PATH="/sys/devices/platform/acer-wmi/predator_sense/battery_limiter"
 
 # Check if sysfs interface exists
 if [ ! -f "$SYSFS_PATH" ]; then
@@ -90,6 +91,17 @@ case "$1" in
             fi
         fi
         
+        # Show battery limiter status
+        if [ -f "$BATTERY_PATH" ]; then
+            BAT_STATUS=$(cat $BATTERY_PATH)
+            echo ""
+            if [ "$BAT_STATUS" = "1" ]; then
+                echo "Battery Limiter: ENABLED (80% limit)"
+            else
+                echo "Battery Limiter: DISABLED (100% charge)"
+            fi
+        fi
+        
         # Try to show GPU power limit from nvidia-smi
         if command -v nvidia-smi &> /dev/null; then
             echo ""
@@ -131,25 +143,49 @@ case "$1" in
             exit 1
         fi
         ;;
+    battery-enable)
+        if [ -f "$BATTERY_PATH" ]; then
+            echo 1 | sudo tee $BATTERY_PATH > /dev/null
+            echo "Battery limiter ENABLED (80% charge limit)"
+            echo "Recommended for extending battery lifespan"
+        else
+            echo "Battery limiter not available"
+            exit 1
+        fi
+        ;;
+    battery-disable)
+        if [ -f "$BATTERY_PATH" ]; then
+            echo 0 | sudo tee $BATTERY_PATH > /dev/null
+            echo "Battery limiter DISABLED (100% charge)"
+        else
+            echo "Battery limiter not available"
+            exit 1
+        fi
+        ;;
     *)
-        echo "Usage: $0 {quiet|balanced|performance|turbo|status|fan-auto|fan-max|fan-custom}"
+        echo "Usage: $0 {quiet|balanced|performance|turbo|status|fan-auto|fan-max|fan-custom|battery-enable|battery-disable}"
         echo ""
         echo "Power Profiles:"
-        echo "  quiet       - 60W GPU power limit (power saving)"
-        echo "  balanced    - 80W GPU power limit (balanced performance)"
-        echo "  performance - 100W GPU power limit (high performance)"
-        echo "  turbo       - 125W GPU power limit (maximum performance)"
-        echo "  status      - Show current profile and GPU power info"
+        echo "  quiet           - 60W GPU power limit (power saving)"
+        echo "  balanced        - 80W GPU power limit (balanced performance)"
+        echo "  performance     - 100W GPU power limit (high performance)"
+        echo "  turbo           - 125W GPU power limit (maximum performance)"
+        echo "  status          - Show all current settings"
         echo ""
         echo "Fan Control:"
-        echo "  fan-auto    - Set fans to automatic mode"
-        echo "  fan-max     - Set fans to maximum speed"
-        echo "  fan-custom  - Set custom fan speeds: fan-custom <cpu> <gpu>"
+        echo "  fan-auto        - Set fans to automatic mode"
+        echo "  fan-max         - Set fans to maximum speed"
+        echo "  fan-custom      - Set custom fan speeds: fan-custom <cpu> <gpu>"
+        echo ""
+        echo "Battery Management:"
+        echo "  battery-enable  - Enable 80% charge limit (extend battery life)"
+        echo "  battery-disable - Disable limit (charge to 100%)"
         echo ""
         echo "Examples:"
         echo "  $0 turbo              # Set to turbo mode"
         echo "  $0 fan-max            # Set fans to 100%"
         echo "  $0 fan-custom 50 70   # Set CPU fan to 50%, GPU to 70%"
+        echo "  $0 battery-enable     # Limit charging to 80%"
         exit 1
         ;;
 esac

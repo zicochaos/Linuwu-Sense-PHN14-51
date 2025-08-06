@@ -1,0 +1,196 @@
+#!/bin/bash
+#
+# Predator Battery Management Script
+# Controls battery charging limiter and calibration
+#
+# Usage: predator-battery {enable|disable|calibrate|status|help}
+
+LIMITER_PATH="/sys/devices/platform/acer-wmi/predator_sense/battery_limiter"
+CALIBRATION_PATH="/sys/devices/platform/acer-wmi/predator_sense/battery_calibration"
+
+# Check if sysfs interfaces exist
+if [ ! -f "$LIMITER_PATH" ] || [ ! -f "$CALIBRATION_PATH" ]; then
+    echo "Error: Battery management interfaces not found!"
+    echo "Make sure the linuwu_sense module is loaded."
+    exit 1
+fi
+
+# Function to get battery info
+get_battery_info() {
+    if command -v upower &> /dev/null; then
+        BATTERY_INFO=$(upower -i /org/freedesktop/UPower/devices/battery_BAT0 2>/dev/null)
+        if [ ! -z "$BATTERY_INFO" ]; then
+            echo "$BATTERY_INFO" | grep -E "state:|percentage:|capacity:|cycles:" | sed 's/^/  /'
+        fi
+    elif [ -f /sys/class/power_supply/BAT0/capacity ]; then
+        echo "  Current charge: $(cat /sys/class/power_supply/BAT0/capacity)%"
+        if [ -f /sys/class/power_supply/BAT0/status ]; then
+            echo "  Status: $(cat /sys/class/power_supply/BAT0/status)"
+        fi
+        if [ -f /sys/class/power_supply/BAT0/cycle_count ]; then
+            echo "  Cycle count: $(cat /sys/class/power_supply/BAT0/cycle_count)"
+        fi
+    fi
+}
+
+case "$1" in
+    enable)
+        echo 1 | sudo tee $LIMITER_PATH > /dev/null
+        if [ $? -eq 0 ]; then
+            echo "Battery limiter ENABLED"
+            echo "Battery will charge to ~80% to extend lifespan"
+            echo ""
+            echo "This is recommended for:"
+            echo "  - Laptops mostly used while plugged in"
+            echo "  - Extending overall battery lifespan"
+            echo "  - Reducing battery wear"
+        else
+            echo "Failed to enable battery limiter"
+            exit 1
+        fi
+        ;;
+    
+    disable)
+        echo 0 | sudo tee $LIMITER_PATH > /dev/null
+        if [ $? -eq 0 ]; then
+            echo "Battery limiter DISABLED"
+            echo "Battery will charge to 100%"
+            echo ""
+            echo "Use this when:"
+            echo "  - You need maximum battery capacity"
+            echo "  - Going on trips without power access"
+            echo "  - Battery runtime is more important than longevity"
+        else
+            echo "Failed to disable battery limiter"
+            exit 1
+        fi
+        ;;
+    
+    calibrate)
+        # Check if calibration is already running
+        CURRENT_CAL=$(cat $CALIBRATION_PATH)
+        if [ "$CURRENT_CAL" = "1" ]; then
+            echo "Battery calibration is already in progress!"
+            echo "To stop calibration, use: $0 calibrate-stop"
+            exit 1
+        fi
+        
+        echo "Starting battery calibration..."
+        echo ""
+        echo "IMPORTANT: Battery calibration process:"
+        echo "1. Battery will discharge to ~3%"
+        echo "2. Then charge back to 100%"
+        echo "3. This helps recalibrate battery level readings"
+        echo ""
+        echo "WARNING: This process can take several hours!"
+        echo "Do not unplug the laptop during calibration."
+        echo ""
+        read -p "Are you sure you want to start calibration? (y/N) " -n 1 -r
+        echo ""
+        
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            # Disable limiter first
+            echo 0 | sudo tee $LIMITER_PATH > /dev/null
+            # Start calibration
+            echo 1 | sudo tee $CALIBRATION_PATH > /dev/null
+            if [ $? -eq 0 ]; then
+                echo "Battery calibration STARTED"
+                echo "The battery will discharge and then fully recharge."
+                echo "Check status with: $0 status"
+            else
+                echo "Failed to start calibration"
+                exit 1
+            fi
+        else
+            echo "Calibration cancelled"
+        fi
+        ;;
+    
+    calibrate-stop)
+        echo 0 | sudo tee $CALIBRATION_PATH > /dev/null
+        if [ $? -eq 0 ]; then
+            echo "Battery calibration STOPPED"
+        else
+            echo "Failed to stop calibration"
+            exit 1
+        fi
+        ;;
+    
+    status)
+        LIMITER_STATUS=$(cat $LIMITER_PATH)
+        CALIBRATION_STATUS=$(cat $CALIBRATION_PATH)
+        
+        echo "Battery Management Status:"
+        echo ""
+        
+        # Limiter status
+        echo "Charge Limiter:"
+        if [ "$LIMITER_STATUS" = "1" ]; then
+            echo "  Status: ENABLED (charging limited to ~80%)"
+        else
+            echo "  Status: DISABLED (charging to 100%)"
+        fi
+        
+        # Calibration status
+        echo ""
+        echo "Calibration:"
+        if [ "$CALIBRATION_STATUS" = "1" ]; then
+            echo "  Status: IN PROGRESS"
+            echo "  Note: Battery is being calibrated"
+        else
+            echo "  Status: NOT RUNNING"
+        fi
+        
+        # Battery info
+        echo ""
+        echo "Battery Information:"
+        get_battery_info
+        
+        # Recommendations
+        echo ""
+        echo "Recommendations:"
+        if [ "$LIMITER_STATUS" = "0" ]; then
+            echo "  - Enable limiter for better battery longevity: $0 enable"
+        fi
+        if [ -f /sys/class/power_supply/BAT0/cycle_count ]; then
+            CYCLES=$(cat /sys/class/power_supply/BAT0/cycle_count)
+            if [ "$CYCLES" -gt 300 ] && [ "$CALIBRATION_STATUS" = "0" ]; then
+                echo "  - Consider calibration (high cycle count: $CYCLES)"
+            fi
+        fi
+        ;;
+    
+    help|--help|-h)
+        echo "Predator Battery Management"
+        echo ""
+        echo "Usage: $0 {enable|disable|calibrate|status|help}"
+        echo ""
+        echo "Commands:"
+        echo "  enable         - Enable 80% charge limit (extends battery life)"
+        echo "  disable        - Disable limit (charge to 100%)"
+        echo "  calibrate      - Start battery calibration process"
+        echo "  calibrate-stop - Stop ongoing calibration"
+        echo "  status         - Show current battery settings and info"
+        echo "  help           - Show this help message"
+        echo ""
+        echo "Battery Limiter:"
+        echo "  When enabled, limits charging to ~80% to reduce battery wear."
+        echo "  Recommended for laptops that stay plugged in most of the time."
+        echo ""
+        echo "Battery Calibration:"
+        echo "  Discharges battery to ~3% then charges to 100%."
+        echo "  Helps recalibrate battery percentage readings."
+        echo "  Should be done every 3-6 months or if readings seem inaccurate."
+        echo ""
+        echo "Examples:"
+        echo "  $0 enable        # Enable 80% charge limit"
+        echo "  $0 status        # Check battery status"
+        echo "  $0 calibrate     # Start calibration process"
+        ;;
+    
+    *)
+        echo "Usage: $0 {enable|disable|calibrate|status|help}"
+        echo "Try '$0 help' for more information"
+        exit 1
+        ;;
+esac

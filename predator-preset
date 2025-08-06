@@ -7,6 +7,7 @@
 
 PROFILE_SCRIPT="/home/sbochna/Projects/Linuwu-Sense-PHN14-51/predator-profile"
 FAN_SCRIPT="/home/sbochna/Projects/Linuwu-Sense-PHN14-51/predator-fan"
+BATTERY_SCRIPT="/home/sbochna/Projects/Linuwu-Sense-PHN14-51/predator-battery"
 
 # Make sure scripts exist
 if [ ! -x "$PROFILE_SCRIPT" ]; then
@@ -17,73 +18,109 @@ if [ ! -x "$FAN_SCRIPT" ]; then
     FAN_SCRIPT="$(dirname $0)/predator-fan"
 fi
 
+if [ ! -x "$BATTERY_SCRIPT" ]; then
+    BATTERY_SCRIPT="$(dirname $0)/predator-battery"
+fi
+
 case "$1" in
     silent)
         echo "Applying SILENT preset..."
         echo "  - Power: Quiet mode (60W)"
         echo "  - Fans: Auto (minimum noise)"
+        echo "  - Battery: Limiter enabled (80%)"
         $PROFILE_SCRIPT quiet
         $FAN_SCRIPT auto
+        $BATTERY_SCRIPT enable > /dev/null 2>&1
         echo ""
-        echo "Silent preset applied - Minimal power and noise"
+        echo "Silent preset applied - Minimal power and noise, battery protected"
         ;;
     
     normal)
         echo "Applying NORMAL preset..."
         echo "  - Power: Balanced mode (80W)"
         echo "  - Fans: Auto"
+        echo "  - Battery: Limiter enabled (80%)"
         $PROFILE_SCRIPT balanced
         $FAN_SCRIPT auto
+        $BATTERY_SCRIPT enable > /dev/null 2>&1
         echo ""
-        echo "Normal preset applied - Balanced performance"
+        echo "Normal preset applied - Balanced performance, battery protected"
         ;;
     
     gaming)
         echo "Applying GAMING preset..."
         echo "  - Power: Performance mode (100W)"
         echo "  - Fans: Custom (60% CPU, 70% GPU)"
+        echo "  - Battery: Limiter disabled (100%)"
         $PROFILE_SCRIPT performance
         $FAN_SCRIPT custom 60 70
+        $BATTERY_SCRIPT disable > /dev/null 2>&1
         echo ""
-        echo "Gaming preset applied - High performance with moderate cooling"
+        echo "Gaming preset applied - High performance, full battery available"
         ;;
     
     extreme)
         echo "Applying EXTREME preset..."
         echo "  - Power: Turbo mode (125W)"
         echo "  - Fans: Maximum (100%)"
+        echo "  - Battery: Limiter disabled (100%)"
         $PROFILE_SCRIPT turbo
         $FAN_SCRIPT max
+        $BATTERY_SCRIPT disable > /dev/null 2>&1
         echo ""
-        echo "EXTREME preset applied - Maximum performance!"
+        echo "EXTREME preset applied - Maximum everything!"
         echo "Warning: This will be LOUD and consume maximum power!"
         ;;
     
+    travel)
+        echo "Applying TRAVEL preset..."
+        echo "  - Power: Balanced mode (80W)"
+        echo "  - Fans: Auto"
+        echo "  - Battery: Limiter disabled (100% for maximum runtime)"
+        $PROFILE_SCRIPT balanced
+        $FAN_SCRIPT auto
+        $BATTERY_SCRIPT disable > /dev/null 2>&1
+        echo ""
+        echo "Travel preset applied - Balanced performance, maximum battery"
+        ;;
+    
     custom)
-        if [ $# -ne 5 ]; then
-            echo "Custom preset requires all parameters:"
-            echo "Usage: $0 custom <power_profile> <cpu_fan> <gpu_fan>"
+        if [ $# -lt 4 ] || [ $# -gt 5 ]; then
+            echo "Custom preset requires parameters:"
+            echo "Usage: $0 custom <power_profile> <cpu_fan> <gpu_fan> [battery]"
             echo ""
             echo "Power profiles: quiet, balanced, performance, turbo"
             echo "Fan speeds: 0-100 (0 = auto)"
+            echo "Battery: enable/disable (optional)"
             echo ""
             echo "Example: $0 custom performance 50 60"
+            echo "Example: $0 custom turbo 80 90 disable"
             exit 1
         fi
         
         POWER=$2
         CPU_FAN=$3
         GPU_FAN=$4
+        BATTERY=$5
         
         echo "Applying CUSTOM preset..."
         echo "  - Power: $POWER"
         echo "  - Fans: CPU=$CPU_FAN%, GPU=$GPU_FAN%"
+        if [ ! -z "$BATTERY" ]; then
+            echo "  - Battery: $BATTERY"
+        fi
         
         $PROFILE_SCRIPT $POWER
         if [ "$CPU_FAN" = "0" ] && [ "$GPU_FAN" = "0" ]; then
             $FAN_SCRIPT auto
         else
             $FAN_SCRIPT custom $CPU_FAN $GPU_FAN
+        fi
+        
+        if [ "$BATTERY" = "enable" ]; then
+            $BATTERY_SCRIPT enable > /dev/null 2>&1
+        elif [ "$BATTERY" = "disable" ]; then
+            $BATTERY_SCRIPT disable > /dev/null 2>&1
         fi
         
         echo ""
@@ -97,25 +134,27 @@ case "$1" in
     *)
         echo "Predator Preset Manager"
         echo ""
-        echo "Usage: $0 {silent|normal|gaming|extreme|custom|status}"
+        echo "Usage: $0 {silent|normal|gaming|extreme|travel|custom|status}"
         echo ""
         echo "Presets:"
-        echo "  silent  - Quiet mode (60W) + Auto fans (minimal noise)"
-        echo "  normal  - Balanced mode (80W) + Auto fans"
-        echo "  gaming  - Performance mode (100W) + 60/70% fans"
-        echo "  extreme - Turbo mode (125W) + Maximum fans"
-        echo "  custom  - Set custom profile and fan speeds"
+        echo "  silent  - Quiet (60W) + Auto fans + 80% battery limit"
+        echo "  normal  - Balanced (80W) + Auto fans + 80% battery limit"
+        echo "  gaming  - Performance (100W) + 60/70% fans + 100% battery"
+        echo "  extreme - Turbo (125W) + Max fans + 100% battery"
+        echo "  travel  - Balanced (80W) + Auto fans + 100% battery"
+        echo "  custom  - Set custom profile, fans, and battery"
         echo "  status  - Show current settings"
         echo ""
         echo "Custom usage:"
-        echo "  $0 custom <power> <cpu_fan> <gpu_fan>"
+        echo "  $0 custom <power> <cpu_fan> <gpu_fan> [battery]"
         echo ""
         echo "Examples:"
-        echo "  $0 silent                    # Quiet operation"
-        echo "  $0 gaming                    # Gaming performance"
-        echo "  $0 extreme                   # Maximum everything"
-        echo "  $0 custom turbo 80 90        # Turbo with 80/90% fans"
-        echo "  $0 custom balanced 0 0       # Balanced with auto fans"
+        echo "  $0 silent                           # Quiet operation"
+        echo "  $0 gaming                           # Gaming performance"
+        echo "  $0 travel                           # For travel/mobility"
+        echo "  $0 extreme                          # Maximum everything"
+        echo "  $0 custom turbo 80 90               # Turbo with 80/90% fans"
+        echo "  $0 custom balanced 0 0 enable       # Balanced, auto fans, 80% battery"
         exit 1
         ;;
 esac
