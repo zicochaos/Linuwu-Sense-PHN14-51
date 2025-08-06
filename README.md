@@ -2,6 +2,9 @@
 
 Unofficial Linux Kernel Module for Acer Gaming Laptops with **Unified Predator Control Center**
 
+**Branch**: `predator-control-system` (Based on v6.13 + Enhanced Control System)  
+**Compatibility**: Pop!_OS 22.04, Kernel 6.12+, and other modern Linux distributions
+
 ## ✨ Features
 
 - **🎯 Unified Control Center** - Simple `predator` command for all features
@@ -10,6 +13,15 @@ Unofficial Linux Kernel Module for Acer Gaming Laptops with **Unified Predator C
 - **🌀 Fan Control** - Auto, custom, and maximum speeds for CPU/GPU
 - **🔋 Battery Management** - 80% charge limiter, calibration support
 - **🎮 Quick Presets** - Gaming, Silent, Work, Extreme, Travel, and more
+
+## 📦 What You Get
+
+This branch (`predator-control-system`) includes:
+- ✅ **Linuwu-Sense v6.13** - Full kernel module with all hardware support
+- ✅ **Predator Control Center** - User-friendly unified control system
+- ✅ **Enhanced Scripts** - Battery, fan, RGB keyboard management
+- ✅ **20+ RGB Profiles** - Gaming and aesthetic keyboard themes
+- ✅ **8 Quick Presets** - One-command system configurations
 
 ## 🚀 Quick Start
 
@@ -37,8 +49,13 @@ sudo zypper install kernel-devel gcc make git
 # Clone and install
 git clone https://github.com/zicochaos/Linuwu-Sense-PHN14-51.git
 cd Linuwu-Sense-PHN14-51
-git checkout predator-control-system  # Use our enhanced branch
-make install
+
+# IMPORTANT: Use the enhanced branch (includes v6.13 + Control Center)
+git checkout predator-control-system
+
+# Build and install the kernel module
+make
+sudo make install
 ```
 
 ### Using the Predator Control Center
@@ -219,4 +236,6 @@ Contributions welcome! Please test changes thoroughly before submitting PRs.
 
 ---
 
-*Developed for Acer Predator Helios Neo 14 (PHN14-51) with Linuwu-Sense v6.13*
+*Based on Linuwu-Sense v6.13 with enhanced Predator Control Center*  
+*Developed for Acer Predator Helios Neo 14 (PHN14-51)*  
+*Compatible with Pop!_OS 22.04, Kernel 6.12+*
