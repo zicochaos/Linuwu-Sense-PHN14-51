@@ -1,0 +1,25 @@
+# Instruction files
+CLAUDE.md
+QWEN.md
+
+# Backup files
+*.bak
+*~
+*.swp
+*.swo
+
+# Build artifacts
+*.o
+*.ko
+*.mod
+*.mod.c
+*.mod.o
+*.cmd
+.tmp_versions/
+Module.symvers
+modules.order
+.cache.mk
+
+# IDE files
+.vscode/
+.idea/
