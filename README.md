@@ -19,8 +19,20 @@ Unofficial Linux Kernel Module for Acer Gaming Laptops with **Unified Predator C
 # Check kernel version
 uname -r
 
-# Install Linux headers (Arch Linux)
-sudo pacman -S linux-headers
+# Install Linux headers for your distribution:
+
+# Ubuntu/Debian/Pop!_OS
+sudo apt update
+sudo apt install build-essential linux-headers-$(uname -r) dkms git
+
+# Fedora
+sudo dnf install kernel-devel kernel-headers gcc make git
+
+# Arch Linux/Manjaro
+sudo pacman -S linux-headers base-devel git
+
+# openSUSE
+sudo zypper install kernel-devel gcc make git
 
 # Clone and install
 git clone https://github.com/zicochaos/Linuwu-Sense-PHN14-51.git
@@ -170,11 +182,25 @@ Inspired by [acer-predator-turbo](https://github.com/JafarAkhondali/acer-predato
 - Custom fan curves
 - User-friendly interface
 
-## 📝 Tested Hardware
+## 📝 Tested Hardware & Systems
 
+### Hardware
 - **Acer Predator Helios Neo 14 (PHN14-51)** with NVIDIA GPU
-- Kernel versions: 6.12, 6.13 (zen)
-- Pop!_OS 22.04, Arch Linux
+- Other Acer Predator/Nitro models may work (test carefully)
+
+### Operating Systems
+- **Pop!_OS** 22.04 LTS
+- **Ubuntu** 22.04/24.04 LTS
+- **Debian** 12 (Bookworm)
+- **Arch Linux** (Rolling)
+- **Manjaro** (Latest)
+- **Fedora** 39/40
+- **openSUSE** Tumbleweed
+
+### Kernel Support
+- Tested: 6.12, 6.13 (including zen)
+- Minimum: 5.15+ (with DKMS)
+- Recommended: 6.0+
 
 ## 🐛 Troubleshooting
 
