@@ -2,6 +2,8 @@
 
 Simple, unified control for Acer Predator laptops on Linux.
 
+**Laptop Model**: Acer Predator Helios Neo 14 (PHN14-51)
+
 ## 🚀 Quick Start
 
 ```bash
@@ -120,7 +122,7 @@ The system also includes individual control scripts:
 
 ## 🔧 Requirements
 
-- Acer Predator laptop (tested on PHN14-51)
+- Acer Predator Helios Neo 14 laptop (model: PHN14-51)
 - Linuwu-Sense kernel module installed
 - Root/sudo access for sysfs writes
 
@@ -200,4 +202,4 @@ If commands don't work:
 
 ---
 
-*Created for Acer Predator PHN14-51 with Linuwu-Sense v6.13*
+*Created for Acer Predator Helios Neo 14 (PHN14-51) with Linuwu-Sense v6.13*
