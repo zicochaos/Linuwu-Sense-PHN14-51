@@ -2,7 +2,7 @@
 
 Unofficial Linux Kernel Module for Acer Gaming Laptops with **Unified Predator Control Center**
 
-**Branch**: `predator-control-system` (Based on v6.13 + Enhanced Control System)  
+**Version**: Based on Linuwu-Sense v6.13 with Enhanced Predator Control Center  
 **Compatibility**: Pop!_OS 22.04, Kernel 6.12+, and other modern Linux distributions
 
 ## ✨ Features
@@ -14,9 +14,8 @@ Unofficial Linux Kernel Module for Acer Gaming Laptops with **Unified Predator C
 - **🔋 Battery Management** - 80% charge limiter, calibration support
 - **🎮 Quick Presets** - Gaming, Silent, Work, Extreme, Travel, and more
 
-## 📦 What You Get
+## 📦 What's Included
 
-This branch (`predator-control-system`) includes:
 - ✅ **Linuwu-Sense v6.13** - Full kernel module with all hardware support
 - ✅ **Predator Control Center** - User-friendly unified control system
 - ✅ **Enhanced Scripts** - Battery, fan, RGB keyboard management
@@ -24,6 +23,16 @@ This branch (`predator-control-system`) includes:
 - ✅ **8 Quick Presets** - One-command system configurations
 
 ## 🚀 Quick Start
+
+### Upgrading from Previous Versions
+
+If you have an older version installed:
+```bash
+# Uninstall old version first
+sudo make uninstall
+
+# Then follow the installation steps below
+```
 
 ### Installation
 
@@ -49,9 +58,6 @@ sudo zypper install kernel-devel gcc make git
 # Clone and install
 git clone https://github.com/zicochaos/Linuwu-Sense-PHN14-51.git
 cd Linuwu-Sense-PHN14-51
-
-# IMPORTANT: Use the enhanced branch (includes v6.13 + Control Center)
-git checkout predator-control-system
 
 # Build and install the kernel module
 make
@@ -229,6 +235,24 @@ Inspired by [acer-predator-turbo](https://github.com/JafarAkhondali/acer-predato
 ## 📄 Documentation
 
 See [PREDATOR_CONTROL.md](PREDATOR_CONTROL.md) for detailed usage guide.
+
+## 📝 Changelog
+
+### Latest Release (v6.13-enhanced)
+- Added unified Predator Control Center (`predator` command)
+- Implemented 20+ RGB keyboard profiles
+- Added interactive menu with colored output
+- Created 8 quick presets for common scenarios
+- Added keyboard brightness control (+/- keys)
+- Integrated battery limiter and calibration
+- Added fan control (auto/manual/max)
+- Full support for 4-zone RGB keyboards
+- Power profiles: Quiet (60W), Balanced (80W), Performance (100W), Turbo (125W)
+
+### v6.13 (Base)
+- Initial kernel module support
+- Basic sysfs interfaces
+- Hardware compatibility layer
 
 ## 🤝 Contributing
 
