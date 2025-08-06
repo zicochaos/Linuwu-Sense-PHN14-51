@@ -1,0 +1,561 @@
+#!/bin/bash
+#
+# Predator Control Center - Unified control for Acer Predator laptops
+# Simple, user-friendly interface for all Predator features
+#
+# Usage: predator [command] [options]
+
+# Color codes for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
+
+# Script paths
+SCRIPT_DIR="$(dirname $0)"
+PROFILE_SCRIPT="$SCRIPT_DIR/predator-profile"
+FAN_SCRIPT="$SCRIPT_DIR/predator-fan"
+BATTERY_SCRIPT="$SCRIPT_DIR/predator-battery"
+KEYBOARD_SCRIPT="$SCRIPT_DIR/predator-keyboard"
+
+# Display banner
+show_banner() {
+    echo -e "${RED}╔═══════════════════════════════════════════╗${NC}"
+    echo -e "${RED}║     ${BOLD}PREDATOR CONTROL CENTER${NC}${RED}              ║${NC}"
+    echo -e "${RED}╚═══════════════════════════════════════════╝${NC}"
+    echo ""
+}
+
+# Show current status
+show_status() {
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BOLD}System Status:${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    
+    # Power profile
+    if [ -f /sys/devices/platform/acer-wmi/predator_sense/power_profile ]; then
+        PROFILE=$(cat /sys/devices/platform/acer-wmi/predator_sense/power_profile)
+        case $PROFILE in
+            0) echo -e "🔋 Power Mode: ${GREEN}Quiet${NC} (60W)" ;;
+            1) echo -e "🔋 Power Mode: ${YELLOW}Balanced${NC} (80W)" ;;
+            2) echo -e "🔋 Power Mode: ${MAGENTA}Performance${NC} (100W)" ;;
+            3) echo -e "🔋 Power Mode: ${RED}${BOLD}TURBO${NC} (125W)" ;;
+        esac
+    fi
+    
+    # Fan status
+    if [ -f /sys/devices/platform/acer-wmi/predator_sense/fan_speed ]; then
+        FAN=$(cat /sys/devices/platform/acer-wmi/predator_sense/fan_speed)
+        IFS=',' read -r CPU GPU <<< "$FAN"
+        if [ "$CPU" = "0" ] && [ "$GPU" = "0" ]; then
+            echo -e "🌀 Fan Mode: ${GREEN}Auto${NC}"
+        elif [ "$CPU" = "100" ] && [ "$GPU" = "100" ]; then
+            echo -e "🌀 Fan Mode: ${RED}Maximum${NC}"
+        else
+            echo -e "🌀 Fan Mode: ${YELLOW}Custom${NC} (CPU:$CPU% GPU:$GPU%)"
+        fi
+    fi
+    
+    # Battery limiter
+    if [ -f /sys/devices/platform/acer-wmi/predator_sense/battery_limiter ]; then
+        BAT=$(cat /sys/devices/platform/acer-wmi/predator_sense/battery_limiter)
+        if [ "$BAT" = "1" ]; then
+            echo -e "🔌 Battery: ${GREEN}Protected${NC} (80% limit)"
+        else
+            echo -e "🔌 Battery: ${YELLOW}Full Charge${NC} (100%)"
+        fi
+    fi
+    
+    # Keyboard RGB
+    if [ -f /sys/devices/platform/acer-wmi/four_zoned_kb/four_zone_mode ]; then
+        RGB=$(cat /sys/devices/platform/acer-wmi/four_zoned_kb/four_zone_mode)
+        IFS=',' read -r MODE SPEED BRIGHT REST <<< "$RGB"
+        case $MODE in
+            0) KB_MODE="Static" ;;
+            1) KB_MODE="Breathe" ;;
+            2) KB_MODE="Neon" ;;
+            3) KB_MODE="Wave" ;;
+            4) KB_MODE="Shift" ;;
+            5) KB_MODE="Zoom" ;;
+            *) KB_MODE="Custom" ;;
+        esac
+        echo -e "⌨️  RGB Mode: ${CYAN}$KB_MODE${NC} ($BRIGHT% brightness)"
+    fi
+    
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+}
+
+# Quick presets menu
+quick_menu() {
+    show_banner
+    echo -e "${BOLD}Quick Presets:${NC}"
+    echo ""
+    echo -e "  ${GREEN}1${NC} │ 🔇 ${BOLD}Silent${NC}      - Minimal noise, battery friendly"
+    echo -e "  ${GREEN}2${NC} │ 💼 ${BOLD}Work${NC}        - Balanced for productivity"  
+    echo -e "  ${GREEN}3${NC} │ 🎮 ${BOLD}Gaming${NC}      - Optimized for gaming"
+    echo -e "  ${GREEN}4${NC} │ 🚀 ${BOLD}Extreme${NC}     - Maximum performance"
+    echo -e "  ${GREEN}5${NC} │ ✈️  ${BOLD}Travel${NC}      - Battery saving mode"
+    echo -e "  ${GREEN}6${NC} │ 🎬 ${BOLD}Movie${NC}       - Quiet with ambient lighting"
+    echo -e "  ${GREEN}7${NC} │ 💻 ${BOLD}Coding${NC}      - Developer focused"
+    echo -e "  ${GREEN}8${NC} │ 🎨 ${BOLD}Creative${NC}    - For content creation"
+    echo ""
+    echo -e "  ${CYAN}s${NC} │ Show current status"
+    echo -e "  ${CYAN}a${NC} │ Advanced settings"
+    echo -e "  ${CYAN}q${NC} │ Quit"
+    echo ""
+    echo -n "Select option: "
+    read -n1 choice
+    echo ""
+    
+    case $choice in
+        1) apply_silent ;;
+        2) apply_work ;;
+        3) apply_gaming ;;
+        4) apply_extreme ;;
+        5) apply_travel ;;
+        6) apply_movie ;;
+        7) apply_coding ;;
+        8) apply_creative ;;
+        s|S) 
+            clear
+            show_banner
+            show_status
+            echo ""
+            echo "Press any key to continue..."
+            read -n1
+            clear
+            quick_menu
+            ;;
+        a|A) 
+            clear
+            advanced_menu 
+            ;;
+        q|Q) 
+            echo "Goodbye!"
+            exit 0 
+            ;;
+        *)
+            echo -e "${RED}Invalid option${NC}"
+            sleep 1
+            clear
+            quick_menu
+            ;;
+    esac
+}
+
+# Advanced settings menu
+advanced_menu() {
+    show_banner
+    echo -e "${BOLD}Advanced Settings:${NC}"
+    echo ""
+    echo -e "${YELLOW}Power Profiles:${NC}"
+    echo -e "  ${GREEN}p1${NC} │ Quiet (60W)"
+    echo -e "  ${GREEN}p2${NC} │ Balanced (80W)"
+    echo -e "  ${GREEN}p3${NC} │ Performance (100W)"
+    echo -e "  ${GREEN}p4${NC} │ Turbo (125W)"
+    echo ""
+    echo -e "${YELLOW}Fan Control:${NC}"
+    echo -e "  ${GREEN}fa${NC} │ Auto"
+    echo -e "  ${GREEN}fm${NC} │ Maximum"
+    echo -e "  ${GREEN}fc${NC} │ Custom"
+    echo ""
+    echo -e "${YELLOW}Keyboard RGB:${NC}"
+    echo -e "  ${GREEN}k1${NC} │ RGB Effects"
+    echo -e "  ${GREEN}k2${NC} │ RGB Profiles"
+    echo -e "  ${GREEN}k3${NC} │ Custom Colors"
+    echo ""
+    echo -e "${YELLOW}Battery:${NC}"
+    echo -e "  ${GREEN}be${NC} │ Enable 80% limit"
+    echo -e "  ${GREEN}bd${NC} │ Disable limit"
+    echo ""
+    echo -e "  ${CYAN}b${NC}  │ Back to main menu"
+    echo ""
+    echo -n "Select option: "
+    read choice
+    
+    case $choice in
+        p1) $PROFILE_SCRIPT quiet && echo -e "${GREEN}✓ Set to Quiet mode${NC}" ;;
+        p2) $PROFILE_SCRIPT balanced && echo -e "${GREEN}✓ Set to Balanced mode${NC}" ;;
+        p3) $PROFILE_SCRIPT performance && echo -e "${GREEN}✓ Set to Performance mode${NC}" ;;
+        p4) $PROFILE_SCRIPT turbo && echo -e "${GREEN}✓ Set to Turbo mode${NC}" ;;
+        fa) $FAN_SCRIPT auto && echo -e "${GREEN}✓ Fans set to Auto${NC}" ;;
+        fm) $FAN_SCRIPT max && echo -e "${GREEN}✓ Fans set to Maximum${NC}" ;;
+        fc) 
+            echo -n "CPU fan speed (0-100): "
+            read cpu
+            echo -n "GPU fan speed (0-100): "
+            read gpu
+            $FAN_SCRIPT custom $cpu $gpu && echo -e "${GREEN}✓ Custom fan speeds set${NC}"
+            ;;
+        k1) rgb_effects_menu ;;
+        k2) rgb_profiles_menu ;;
+        k3) rgb_custom_menu ;;
+        be) $BATTERY_SCRIPT enable && echo -e "${GREEN}✓ Battery limiter enabled${NC}" ;;
+        bd) $BATTERY_SCRIPT disable && echo -e "${GREEN}✓ Battery limiter disabled${NC}" ;;
+        b) 
+            clear
+            quick_menu 
+            ;;
+        *)
+            echo -e "${RED}Invalid option${NC}"
+            ;;
+    esac
+    
+    if [ "$choice" != "b" ]; then
+        echo ""
+        echo "Press any key to continue..."
+        read -n1
+        clear
+        advanced_menu
+    fi
+}
+
+# RGB Effects menu
+rgb_effects_menu() {
+    clear
+    show_banner
+    echo -e "${BOLD}RGB Effects:${NC}"
+    echo ""
+    echo -e "  ${GREEN}1${NC} │ Static"
+    echo -e "  ${GREEN}2${NC} │ Breathe"
+    echo -e "  ${GREEN}3${NC} │ Wave"
+    echo -e "  ${GREEN}4${NC} │ Neon"
+    echo -e "  ${GREEN}5${NC} │ Shift"
+    echo -e "  ${GREEN}6${NC} │ Zoom"
+    echo -e "  ${GREEN}0${NC} │ Turn Off"
+    echo ""
+    echo -n "Select effect: "
+    read -n1 effect
+    echo ""
+    
+    case $effect in
+        1) $KEYBOARD_SCRIPT static && echo -e "${GREEN}✓ Static mode${NC}" ;;
+        2) $KEYBOARD_SCRIPT breathe && echo -e "${GREEN}✓ Breathe mode${NC}" ;;
+        3) $KEYBOARD_SCRIPT wave && echo -e "${GREEN}✓ Wave mode${NC}" ;;
+        4) $KEYBOARD_SCRIPT neon && echo -e "${GREEN}✓ Neon mode${NC}" ;;
+        5) $KEYBOARD_SCRIPT shift && echo -e "${GREEN}✓ Shift mode${NC}" ;;
+        6) $KEYBOARD_SCRIPT zoom && echo -e "${GREEN}✓ Zoom mode${NC}" ;;
+        0) $KEYBOARD_SCRIPT off && echo -e "${GREEN}✓ Keyboard off${NC}" ;;
+        *) echo -e "${RED}Invalid option${NC}" ;;
+    esac
+}
+
+# RGB Profiles menu
+rgb_profiles_menu() {
+    clear
+    show_banner
+    echo -e "${BOLD}RGB Profiles:${NC}"
+    echo ""
+    echo -e "${YELLOW}Gaming:${NC}"
+    echo -e "  ${GREEN}1${NC} │ Gaming (WASD highlight)"
+    echo -e "  ${GREEN}2${NC} │ FPS (Movement keys)"
+    echo -e "  ${GREEN}3${NC} │ MOBA (QWER highlight)"
+    echo -e "  ${GREEN}4${NC} │ Racing (Arrow keys)"
+    echo ""
+    echo -e "${YELLOW}Productivity:${NC}"
+    echo -e "  ${GREEN}5${NC} │ Coding (F-keys highlight)"
+    echo -e "  ${GREEN}6${NC} │ Typing (Warm white)"
+    echo -e "  ${GREEN}7${NC} │ Minimal (Dim white)"
+    echo ""
+    echo -e "${YELLOW}Aesthetic:${NC}"
+    echo -e "  ${GREEN}8${NC} │ Rainbow"
+    echo -e "  ${GREEN}9${NC} │ Fire"
+    echo -e "  ${GREEN}10${NC}│ Ocean"
+    echo -e "  ${GREEN}11${NC}│ Forest"
+    echo -e "  ${GREEN}12${NC}│ Sunset"
+    echo -e "  ${GREEN}13${NC}│ Cyberpunk"
+    echo -e "  ${GREEN}14${NC}│ Vaporwave"
+    echo -e "  ${GREEN}15${NC}│ Arctic"
+    echo -e "  ${GREEN}16${NC}│ Lava"
+    echo -e "  ${GREEN}17${NC}│ Galaxy"
+    echo -e "  ${GREEN}18${NC}│ Toxic"
+    echo -e "  ${GREEN}19${NC}│ Cherry Blossom"
+    echo -e "  ${GREEN}20${NC}│ Halloween"
+    echo ""
+    echo -n "Select profile: "
+    read profile
+    
+    case $profile in
+        1) $KEYBOARD_SCRIPT profile-gaming ;;
+        2) $KEYBOARD_SCRIPT profile-fps ;;
+        3) $KEYBOARD_SCRIPT profile-moba ;;
+        4) $KEYBOARD_SCRIPT profile-racing ;;
+        5) $KEYBOARD_SCRIPT profile-coding ;;
+        6) $KEYBOARD_SCRIPT profile-typing ;;
+        7) $KEYBOARD_SCRIPT profile-minimal ;;
+        8) $KEYBOARD_SCRIPT profile-rainbow ;;
+        9) $KEYBOARD_SCRIPT profile-fire ;;
+        10) $KEYBOARD_SCRIPT profile-ocean ;;
+        11) $KEYBOARD_SCRIPT profile-forest ;;
+        12) $KEYBOARD_SCRIPT profile-sunset ;;
+        13) $KEYBOARD_SCRIPT profile-cyberpunk ;;
+        14) $KEYBOARD_SCRIPT profile-vaporwave ;;
+        15) $KEYBOARD_SCRIPT profile-arctic ;;
+        16) $KEYBOARD_SCRIPT profile-lava ;;
+        17) $KEYBOARD_SCRIPT profile-galaxy ;;
+        18) $KEYBOARD_SCRIPT profile-toxic ;;
+        19) $KEYBOARD_SCRIPT profile-cherry ;;
+        20) $KEYBOARD_SCRIPT profile-halloween ;;
+        *) echo -e "${RED}Invalid profile${NC}" ;;
+    esac
+    
+    echo -e "${GREEN}✓ Profile applied${NC}"
+}
+
+# RGB Custom colors menu
+rgb_custom_menu() {
+    clear
+    show_banner
+    echo -e "${BOLD}Custom RGB Colors:${NC}"
+    echo ""
+    echo "Enter color in hex format (e.g., ff0000 for red)"
+    echo "or press Enter for default white"
+    echo ""
+    echo -n "Zone 1 color: "
+    read z1
+    z1=${z1:-ffffff}
+    echo -n "Zone 2 color: "
+    read z2
+    z2=${z2:-ffffff}
+    echo -n "Zone 3 color: "
+    read z3
+    z3=${z3:-ffffff}
+    echo -n "Zone 4 color: "
+    read z4
+    z4=${z4:-ffffff}
+    
+    $KEYBOARD_SCRIPT zone $z1 $z2 $z3 $z4
+    echo -e "${GREEN}✓ Custom colors applied${NC}"
+}
+
+# Preset functions
+apply_silent() {
+    echo -e "\n${CYAN}Applying Silent preset...${NC}"
+    $PROFILE_SCRIPT quiet
+    $FAN_SCRIPT auto > /dev/null 2>&1
+    $BATTERY_SCRIPT enable > /dev/null 2>&1
+    $KEYBOARD_SCRIPT brightness 20 > /dev/null 2>&1
+    $KEYBOARD_SCRIPT static ffffff > /dev/null 2>&1
+    echo -e "${GREEN}✓ Silent mode activated${NC}"
+    echo "  Minimal noise and power consumption"
+    if [ "$1" != "cli" ]; then
+        sleep 2
+        clear
+        quick_menu
+    fi
+}
+
+apply_work() {
+    echo -e "\n${CYAN}Applying Work preset...${NC}"
+    $PROFILE_SCRIPT balanced
+    $FAN_SCRIPT auto > /dev/null 2>&1
+    $BATTERY_SCRIPT enable > /dev/null 2>&1
+    $KEYBOARD_SCRIPT profile-typing > /dev/null 2>&1
+    echo -e "${GREEN}✓ Work mode activated${NC}"
+    echo "  Balanced performance for productivity"
+    if [ "$1" != "cli" ]; then
+        sleep 2
+        clear
+        quick_menu
+    fi
+}
+
+apply_gaming() {
+    echo -e "\n${CYAN}Applying Gaming preset...${NC}"
+    $PROFILE_SCRIPT performance
+    $FAN_SCRIPT custom 60 70 > /dev/null 2>&1
+    $BATTERY_SCRIPT disable > /dev/null 2>&1
+    $KEYBOARD_SCRIPT profile-gaming > /dev/null 2>&1
+    echo -e "${GREEN}✓ Gaming mode activated${NC}"
+    echo "  Optimized for gaming performance"
+    if [ "$1" != "cli" ]; then
+        sleep 2
+        clear
+        quick_menu
+    fi
+}
+
+apply_extreme() {
+    echo -e "\n${RED}${BOLD}ACTIVATING EXTREME MODE!${NC}"
+    $PROFILE_SCRIPT turbo
+    $FAN_SCRIPT max > /dev/null 2>&1
+    $BATTERY_SCRIPT disable > /dev/null 2>&1
+    $KEYBOARD_SCRIPT profile-fire > /dev/null 2>&1
+    echo -e "${RED}⚡ MAXIMUM PERFORMANCE ENABLED ⚡${NC}"
+    echo "  Warning: High noise and power consumption!"
+    if [ "$1" != "cli" ]; then
+        sleep 3
+        clear
+        quick_menu
+    fi
+}
+
+apply_travel() {
+    echo -e "\n${CYAN}Applying Travel preset...${NC}"
+    $PROFILE_SCRIPT quiet
+    $FAN_SCRIPT auto > /dev/null 2>&1
+    $BATTERY_SCRIPT disable > /dev/null 2>&1
+    $KEYBOARD_SCRIPT off > /dev/null 2>&1
+    echo -e "${GREEN}✓ Travel mode activated${NC}"
+    echo "  Maximum battery life for on-the-go"
+    if [ "$1" != "cli" ]; then
+        sleep 2
+        clear
+        quick_menu
+    fi
+}
+
+apply_movie() {
+    echo -e "\n${CYAN}Applying Movie preset...${NC}"
+    $PROFILE_SCRIPT quiet
+    $FAN_SCRIPT auto > /dev/null 2>&1
+    $BATTERY_SCRIPT enable > /dev/null 2>&1
+    $KEYBOARD_SCRIPT profile-ocean > /dev/null 2>&1
+    $KEYBOARD_SCRIPT brightness 30 > /dev/null 2>&1
+    echo -e "${GREEN}✓ Movie mode activated${NC}"
+    echo "  Quiet operation with ambient lighting"
+    if [ "$1" != "cli" ]; then
+        sleep 2
+        clear
+        quick_menu
+    fi
+}
+
+apply_coding() {
+    echo -e "\n${CYAN}Applying Coding preset...${NC}"
+    $PROFILE_SCRIPT balanced
+    $FAN_SCRIPT auto > /dev/null 2>&1
+    $BATTERY_SCRIPT enable > /dev/null 2>&1
+    $KEYBOARD_SCRIPT profile-coding > /dev/null 2>&1
+    echo -e "${GREEN}✓ Coding mode activated${NC}"
+    echo "  Optimized for development work"
+    if [ "$1" != "cli" ]; then
+        sleep 2
+        clear
+        quick_menu
+    fi
+}
+
+apply_creative() {
+    echo -e "\n${CYAN}Applying Creative preset...${NC}"
+    $PROFILE_SCRIPT performance
+    $FAN_SCRIPT custom 50 60 > /dev/null 2>&1
+    $BATTERY_SCRIPT enable > /dev/null 2>&1
+    $KEYBOARD_SCRIPT profile-rainbow > /dev/null 2>&1
+    echo -e "${GREEN}✓ Creative mode activated${NC}"
+    echo "  Balanced for content creation"
+    if [ "$1" != "cli" ]; then
+        sleep 2
+        clear
+        quick_menu
+    fi
+}
+
+# Command line interface
+case "$1" in
+    # Quick presets
+    silent)
+        apply_silent cli
+        exit 0
+        ;;
+    work)
+        apply_work cli
+        exit 0
+        ;;
+    gaming)
+        apply_gaming cli
+        exit 0
+        ;;
+    extreme)
+        apply_extreme cli
+        exit 0
+        ;;
+    travel)
+        apply_travel cli
+        exit 0
+        ;;
+    movie)
+        apply_movie cli
+        exit 0
+        ;;
+    coding)
+        apply_coding cli
+        exit 0
+        ;;
+    creative)
+        apply_creative cli
+        exit 0
+        ;;
+    
+    # Direct controls
+    power)
+        shift
+        $PROFILE_SCRIPT "$@"
+        ;;
+    fan)
+        shift
+        $FAN_SCRIPT "$@"
+        ;;
+    rgb|keyboard)
+        shift
+        $KEYBOARD_SCRIPT "$@"
+        ;;
+    battery)
+        shift
+        $BATTERY_SCRIPT "$@"
+        ;;
+    
+    # Status
+    status)
+        show_banner
+        show_status
+        ;;
+    
+    # Help
+    help|--help|-h)
+        show_banner
+        echo "Usage: predator [command] [options]"
+        echo ""
+        echo -e "${BOLD}Quick Presets:${NC}"
+        echo "  silent    - Minimal noise and power"
+        echo "  work      - Balanced productivity"
+        echo "  gaming    - Gaming performance"
+        echo "  extreme   - Maximum performance"
+        echo "  travel    - Battery saving"
+        echo "  movie     - Quiet with ambient light"
+        echo "  coding    - Developer focused"
+        echo "  creative  - Content creation"
+        echo ""
+        echo -e "${BOLD}Direct Control:${NC}"
+        echo "  power [quiet|balanced|performance|turbo]"
+        echo "  fan [auto|max|custom <cpu> <gpu>]"
+        echo "  rgb [static|wave|breathe|profile-name|off]"
+        echo "  battery [enable|disable]"
+        echo "  status    - Show system status"
+        echo ""
+        echo -e "${BOLD}Interactive:${NC}"
+        echo "  predator  - Launch interactive menu"
+        echo ""
+        echo -e "${BOLD}Examples:${NC}"
+        echo "  predator gaming         # Gaming preset"
+        echo "  predator power turbo    # Max power"
+        echo "  predator rgb wave       # Wave effect"
+        echo "  predator status         # Check status"
+        ;;
+    
+    # Interactive menu (default)
+    ""|menu)
+        clear
+        quick_menu
+        ;;
+    
+    *)
+        echo "Unknown command: $1"
+        echo "Try 'predator help' for usage"
+        exit 1
+        ;;
+esac

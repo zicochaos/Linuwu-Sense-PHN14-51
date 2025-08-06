@@ -335,6 +335,76 @@ case "$1" in
         set_zones ff00ff 00ffff ff00ff 00ffff 100
         ;;
     
+    profile-racing)
+        echo "Applying RACING profile (arrow keys highlight)"
+        set_zones 404040 404040 404040 ff0000 100
+        ;;
+    
+    profile-minimal)
+        echo "Applying MINIMAL profile (dim white)"
+        set_zones ffffff ffffff ffffff ffffff 30
+        ;;
+    
+    profile-vaporwave)
+        echo "Applying VAPORWAVE profile"
+        set_zones ff69b4 9370db ff1493 ba55d3 100
+        ;;
+    
+    profile-arctic)
+        echo "Applying ARCTIC profile"
+        set_zones e0ffff b0e0e6 87ceeb 4682b4 100
+        ;;
+    
+    profile-lava)
+        echo "Applying LAVA profile"
+        set_zones ff4500 ff6347 dc143c 8b0000 100
+        ;;
+    
+    profile-galaxy)
+        echo "Applying GALAXY profile"
+        set_zones 4b0082 8a2be2 9400d3 da70d6 100
+        ;;
+    
+    profile-toxic)
+        echo "Applying TOXIC profile"
+        set_zones 00ff00 32cd32 adff2f 7fff00 100
+        ;;
+    
+    profile-cherry)
+        echo "Applying CHERRY BLOSSOM profile"
+        set_zones ffb7c5 ffc0cb ffd1dc ffe4e1 100
+        ;;
+    
+    profile-halloween)
+        echo "Applying HALLOWEEN profile"
+        set_zones ff8c00 ff4500 8b4513 000000 100
+        ;;
+    
+    profile-matrix)
+        echo "Applying MATRIX profile"
+        set_zones 00ff00 008000 006400 003300 100
+        ;;
+    
+    profile-stealth)
+        echo "Applying STEALTH profile"
+        set_zones 1a1a1a 2d2d2d 404040 595959 50
+        ;;
+    
+    profile-miami)
+        echo "Applying MIAMI profile"
+        set_zones ff69b4 ff1493 00ced1 ff6347 100
+        ;;
+    
+    profile-nordic)
+        echo "Applying NORDIC profile"
+        set_zones 5e81ac 81a1c1 88c0d0 8fbcbb 80
+        ;;
+    
+    profile-monochrome)
+        echo "Applying MONOCHROME profile"
+        set_zones ffffff cccccc 999999 666666 70
+        ;;
+    
     off)
         echo "Turning keyboard backlight OFF"
         set_mode $MODE_STATIC 0 0 0 0 0 0
