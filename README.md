@@ -1,248 +1,196 @@
-# Unofficial Linux Kernel Module for Acer Gaming RGB Keyboard Backlight and Turbo Mode (Acer Predator , Nitro)
-The code base is still in its early stages, as I’ve just started working on developing this kernel module. It's a bit messy at the moment, but I’m hopeful that, with your help, we can collaborate to improve its structure and make it more organized over time.
+# 🎮 Linuwu-Sense for Acer Predator Helios Neo 14 (PHN14-51)
 
-Inspired by [acer-predator-turbo](https://github.com/JafarAkhondali/acer-predator-turbo-and-rgb-keyboard-linux-module), which has a similar goal, this project was born out of my own challenges. I faced issues detecting the Turbo key and ended up using [acer_wmi](https://github.com/torvalds/linux/blob/master/drivers/platform/x86/acer-wmi.c), but it lacked key features like RGB , custom fan support, battery limiter, and more. As a result, I decided to implement these missing features in my own project.
+Unofficial Linux Kernel Module for Acer Gaming Laptops with **Unified Predator Control Center**
 
-## 🚀 Installation
-To begin, identify your current kernel version:
+## ✨ Features
+
+- **🎯 Unified Control Center** - Simple `predator` command for all features
+- **⚡ Power Profiles** - Quiet (60W), Balanced (80W), Performance (100W), Turbo (125W)
+- **🌈 RGB Keyboard Control** - 20+ profiles, effects, brightness control, 4-zone support
+- **🌀 Fan Control** - Auto, custom, and maximum speeds for CPU/GPU
+- **🔋 Battery Management** - 80% charge limiter, calibration support
+- **🎮 Quick Presets** - Gaming, Silent, Work, Extreme, Travel, and more
+
+## 🚀 Quick Start
+
+### Installation
+
 ```bash
+# Check kernel version
 uname -r
-```
 
-Install the appropriate Linux headers based on your kernel version. This module has been tested with kernel version (6.12,6.13) zen. 
-For Arch Linux:
-```bash
+# Install Linux headers (Arch Linux)
 sudo pacman -S linux-headers
-```
-Next, clone the repository and build the module:
-```bash
-git clone https://github.com/0x7375646F/Linuwu-Sense.git
-cd Linuwu-Sense
+
+# Clone and install
+git clone https://github.com/zicochaos/Linuwu-Sense-PHN14-51.git
+cd Linuwu-Sense-PHN14-51
+git checkout predator-control-system  # Use our enhanced branch
 make install
 ```
-The make command will remove the current acer_wmi module and load the patched version.
 
-To Uninstall:
+### Using the Predator Control Center
+
+```bash
+# Interactive menu (recommended)
+./predator
+
+# Quick presets
+./predator gaming    # Gaming mode: Performance + RGB + Custom fans
+./predator silent    # Silent mode: Quiet + Dim keyboard + Auto fans
+./predator extreme   # Maximum everything!
+
+# Check status
+./predator status
+```
+
+## 📱 Interactive Menu
+
+When running `./predator`:
+- **1-8**: Quick presets (Silent, Work, Gaming, Extreme, Travel, Movie, Coding, Creative)
+- **0**: Turn keyboard backlight off
+- **+/-**: Adjust keyboard brightness
+- **s**: Show current status
+- **a**: Advanced settings
+- **q**: Quit
+
+## 🎨 Available Presets
+
+| Preset | Power | Fans | Battery | RGB | Use Case |
+|--------|-------|------|---------|-----|----------|
+| **Silent** | 60W | Auto | 80% limit | Dim white (20%) | Library/night |
+| **Work** | 80W | Auto | 80% limit | Warm white (70%) | Productivity |
+| **Gaming** | 100W | 60/70% | 100% | Gaming RGB | Gaming sessions |
+| **Extreme** | 125W | Max | 100% | Fire effect | Benchmarks |
+| **Travel** | 60W | Auto | 100% | Off | Battery saving |
+| **Movie** | 60W | Auto | 80% limit | Ocean (30%) | Media |
+| **Coding** | 80W | Auto | 80% limit | F-keys (60%) | Development |
+| **Creative** | 100W | 50/60% | 80% limit | Rainbow | Content creation |
+
+## 💻 Command Line Usage
+
+### Power Control
+```bash
+./predator power quiet       # 60W
+./predator power balanced    # 80W
+./predator power performance # 100W
+./predator power turbo       # 125W
+```
+
+### RGB Keyboard
+```bash
+./predator rgb static ff0000      # Red static
+./predator rgb wave               # Wave effect
+./predator rgb profile-cyberpunk  # Cyberpunk theme
+./predator rgb brightness 50      # 50% brightness
+./predator rgb off                # Turn off
+```
+
+### Fan Control
+```bash
+./predator fan auto           # Automatic
+./predator fan max            # Maximum speed
+./predator fan custom 60 70   # CPU 60%, GPU 70%
+```
+
+### Battery Management
+```bash
+./predator battery enable    # 80% charge limit
+./predator battery disable   # 100% charge
+```
+
+## 🌈 RGB Keyboard Profiles
+
+**Gaming**: `gaming`, `fps`, `moba`, `racing`  
+**Aesthetic**: `rainbow`, `fire`, `ocean`, `forest`, `sunset`, `cyberpunk`, `vaporwave`, `nordic`, `arctic`, `galaxy`, `toxic`, `cherry`, `halloween`, `matrix`, `stealth`, `miami`  
+**Productivity**: `coding`, `typing`, `minimal`
+
+## 🛠️ Advanced Usage (Direct sysfs)
+
+For **Predator** laptops: `/sys/devices/platform/acer-wmi/predator_sense/`  
+For **Nitro** laptops: `/sys/devices/platform/acer-wmi/nitro_sense/`
+
+### Power Profile (0=Quiet, 1=Balanced, 2=Performance, 3=Turbo)
+```bash
+echo 3 | sudo tee /sys/devices/platform/acer-wmi/predator_sense/power_profile
+```
+
+### Fan Speed (CPU,GPU percentages)
+```bash
+echo 50,70 | sudo tee /sys/devices/platform/acer-wmi/predator_sense/fan_speed
+```
+
+### Battery Limiter (0=disabled, 1=enabled)
+```bash
+echo 1 | sudo tee /sys/devices/platform/acer-wmi/predator_sense/battery_limiter
+```
+
+### RGB Keyboard (4-zone)
+```bash
+# Effects: mode,speed,brightness,direction,r,g,b
+echo 3,1,100,0,255,0,0 | sudo tee /sys/devices/platform/acer-wmi/four_zoned_kb/four_zone_mode
+
+# Per-zone colors: zone1,zone2,zone3,zone4,brightness
+echo ff0000,00ff00,0000ff,ffff00,100 | sudo tee /sys/devices/platform/acer-wmi/four_zoned_kb/per_zone_mode
+```
+
+## 📋 All sysfs Features
+
+### predator_sense directory
+- `backlight_timeout` - RGB timeout after 30s idle (0/1)
+- `battery_calibration` - Start/stop calibration (0/1)
+- `battery_limiter` - 80% charge limit (0/1)
+- `boot_animation_sound` - Boot animation/sound (0/1)
+- `fan_speed` - CPU,GPU fan speeds (0-100)
+- `lcd_override` - Reduce LCD latency (0/1)
+- `power_profile` - Power mode (0-3)
+- `usb_charging` - USB power when off (0/1)
+
+### four_zoned_kb directory
+- `four_zone_mode` - RGB effects and settings
+- `per_zone_mode` - Individual zone colors
+
+## 🔧 Uninstallation
+
 ```bash
 make uninstall
 ```
-> **⚠️ Warning!**
-> ## Use at your own risk! This driver is independently developed through reverse engineering the official PredatorSense app, without any involvement from Acer. It interacts with low-level WMI methods, which may not be tested across all models.
 
-## 🛠️ Usage
-# Example Usage and Configuration
+## ⚠️ Warning
 
-Thermal profiles can be easily switched with a single click! 😎 For battery mode, you can choose between Eco and Balanced, while when plugged into AC, you have the options for Quiet, Balanced, Performance, and Turbo. ⚡💻 Each profile will be different for battery and AC, and the thermal and fan settings will automatically adjust based on your current power source. Customize it to fit your preferences! 🌟
+**Use at your own risk!** This driver is independently developed through reverse engineering the official PredatorSense app, without any involvement from Acer. It interacts with low-level WMI methods, which may not be tested across all models.
 
----
+## 🙏 Credits
 
-For **Predator** laptops, the following path is used: `/sys/module/linuwu_sense/drivers/platform:acer-wmi/acer-wmi/predator_sense`
+Inspired by [acer-predator-turbo](https://github.com/JafarAkhondali/acer-predator-turbo-and-rgb-keyboard-linux-module). This project extends functionality with:
+- Unified control system
+- Power profile support (including Turbo mode)
+- Enhanced RGB control with brightness
+- Battery management
+- Custom fan curves
+- User-friendly interface
 
-For **Nitro** laptops, the following path is used: `/sys/module/linuwu_sense/drivers/platform:acer-wmi/acer-wmi/nitro_sense`
+## 📝 Tested Hardware
 
-predator_sense – This directory includes all the features, excluding the custom boot logo functionality.
-four_zoned_kb – If your keyboard is four-zoned, this directory provides support for it. Unfortunately, there is no support for per-key RGB keyboards.
-Here is how to interact with the Virtual Filesystems (VFS) mounted in this path:
+- **Acer Predator Helios Neo 14 (PHN14-51)** with NVIDIA GPU
+- Kernel versions: 6.12, 6.13 (zen)
+- Pop!_OS 22.04, Arch Linux
 
-#### **1. Backlight Timeout ⏰**
+## 🐛 Troubleshooting
 
-This feature turns off the keyboard RGB after 30 seconds of idle mode.
+1. **Module won't load**: Check `dmesg | grep linuwu` for errors
+2. **No predator_sense directory**: Ensure your laptop model is supported
+3. **Permission denied**: Use `sudo` for sysfs writes
+4. **RGB not working**: Check if you have 4-zone keyboard support
 
-- **0** – Disabled
-- **1** – Enabled
+## 📄 Documentation
 
-To check the current status, use:
+See [PREDATOR_CONTROL.md](PREDATOR_CONTROL.md) for detailed usage guide.
 
-`cat /sys/module/linuwu_sense/drivers/platform:acer-wmi/acer-wmi/predator_sense/backlight_timeout`
+## 🤝 Contributing
 
-To change the state, use:
-
-`echo 1 | sudo tee /sys/module/linuwu_sense/drivers/platform:acer-wmi/acer-wmi/predator_sense/backlight_timeout`
-
----
-
-#### **2. Battery Calibration 🔋**
-
-This function calibrates your battery to provide a more accurate percentage reading. It involves charging the battery to 100%, draining it to 0%, and recharging it back to 100%. **Do not unplug the laptop from AC power during calibration.**
-
-- **1** – Start calibration
-- **0** – Stop calibration
-
-To check the current status:
-
-`cat /sys/module/linuwu_sense/drivers/platform:acer-wmi/acer-wmi/predator_sense/battery_calibration`
-
-To change the state:
-
-`echo 1 | sudo tee /sys/module/linuwu_sense/drivers/platform:acer-wmi/acer-wmi/predator_sense/battery_calibration`
+Contributions welcome! Please test changes thoroughly before submitting PRs.
 
 ---
 
-#### **3. Battery Limiter ⚡**
-
-Limits battery charging to 80%, preserving battery health for laptops primarily used while plugged into AC power.
-
-- **1** – Enabled
-- **0** – Disabled
-
-To check the current status:
-
-`cat /sys/module/linuwu_sense/drivers/platform:acer-wmi/acer-wmi/predator_sense/battery_limiter`
-
-To change the state:
-
-`echo 1 | sudo tee /sys/module/linuwu_sense/drivers/platform:acer-wmi/acer-wmi/predator_sense/battery_limiter`
-
----
-
-#### **4. Boot Animation Sound 🎶**
-
-Enables or disables custom boot animation and sound.
-
-- **1** – Enabled
-- **0** – Disabled
-
-To check the current status:
-
-`cat /sys/module/linuwu_sense/drivers/platform:acer-wmi/acer-wmi/predator_sense/boot_animation_sound`
-
-To change the state:
-
-`echo 0 | sudo tee /sys/module/linuwu_sense/drivers/platform:acer-wmi/acer-wmi/predator_sense/boot_animation_sound`
-
----
-
-#### **5. Fan Speed  🌬️**
-
-Controls the CPU and GPU fan speeds.
-
-- **0** – Auto
-- **1** – Minimum fan speed (not recommended)
-- **100** – Maximum fan speed
-- Other values like **50, 55, 70** can be set according to your preference.
-
-Example (set CPU to 50 and GPU to 70):
-
-`echo 50,70 | sudo tee /sys/module/linuwu_sense/drivers/platform:acer-wmi/acer-wmi/predator_sense/fan_speed`
-
----
-
-#### **6. LCD Override 🖥️**
-
-Reduces LCD latency and minimizes ghosting.
-
-- **1** – Enabled
-- **0** – Disabled
-
-To check the current status:
-
-`cat /sys/module/linuwu_sense/drivers/platform:acer-wmi/acer-wmi/predator_sense/lcd_override`
-
-To change the state:
-
-`echo 1 | sudo tee /sys/module/linuwu_sense/drivers/platform:acer-wmi/acer-wmi/predator_sense/lcd_override`
-
----
-
-#### **7. USB Charging ⚡**
-
-Allows the USB charging port to provide power even when the laptop is off.
-
-- **0** – Disabled
-- **10** – Provides power until battery reaches 10%
-- **20** – Provides power until battery reaches 20%
-- **30** – Provides power until battery reaches 30%
-
-To check the current status:
-
-`cat /sys/module/linuwu_sense/drivers/platform:acer-wmi/acer-wmi/predator_sense/usb_charging`
-
-To change the state:
-
-`echo 20 | sudo tee /sys/module/linuwu_sense/drivers/platform:acer-wmi/acer-wmi/predator_sense/usb_charging`
-
----
-## 💻 Keyboard Configuration 
-### **Directory: `four_zoned_kb`**
-
-The `four_zoned_kb` directory contains two Virtual File Systems (VFS) that control the RGB backlight behavior of the four-zone keyboard:
-
-1. **`four_zone_mode`**
-2. **`per_zone_mode`**
-
-#### **1. Per-Zone Mode (`per_zone_mode`) 🎨**
-
-This mode allows you to set a specific RGB color for each of the four keyboard zones individually. Each zone is represented by an RGB value in hexadecimal format (e.g., `4287f5` where `42` is Red, `87` is Green, and `f5` is Blue).
-
-- **Parameters:**
-    
-    - The `per_zone_mode` file accepts four parameters, one for each zone, separated by commas.
-    - The `per_zone_mode` also accepts brightness value.
-    - Each parameter represents the RGB value for a specific zone in the format `RRGGBB`.
-- **Example:**
-
-To set all four zones to the same color (`4287f5`) and brightness to full:
-
-`echo 4287f5,4287f5,4287f5,4287f5,100 | sudo tee /sys/module/linuwu_sense/drivers/platform:acer-wmi/acer-wmi/four_zoned_kb/per_zone_mode`
-
-To set each zone with unique colors:
-
-`echo 4287f5,ff5733,33ff57,ff33a6,100 | sudo tee /sys/module/linuwu_sense/drivers/platform:acer-wmi/acer-wmi/four_zoned_kb/per_zone_mode`
-
-When reading (`cat`) the `per_zone_mode` file, the current color values for each zone are displayed in the format:
-
-`4287f5,4287f5,4287f5,4287f5,100`
-
-This indicates the current RGB color for each of the four zones.
-
-### **Four-Zone Mode (`four_zone_mode`) ✨**
-
-The `four_zone_mode` controls advanced RGB effects for your keyboard, requiring seven parameters:
-
-- **Parameters:**
-    
-    - **Mode (0-7):** Lighting effect type (e.g., static, breathing, wave).
-    - **Speed (0-9):** Speed of the effect (if applicable).
-    - **Brightness (0-100):** Intensity of the lighting effect.
-    - **Direction (1-2):** Direction of the effect (1 = right to left, 2 = left to right).
-    - **Red (0-255), Green (0-255), Blue (0-255):** RGB color values.
-- **Modes:**
-    
-    - **0:** Static Mode – Fixed color, no animation.
-    - **1:** Breathing Mode – Color fades in and out.
-    - **2:** Neon Mode – Neon glow effect, fixed color (black), direction ignored.
-    - **3:** Wave Mode – Wave-like effect, color transitions across the keyboard.
-    - **4:** Shifting Mode – Shifting light effect, full control over speed, direction, and color.
-    - **5:** Zoom Mode – Zoom effect, direction ignored.
-    - **6:** Meteor Mode – Meteor-like effect, direction ignored.
-    - **7:** Twinkling Mode – Twinkling light effect, direction ignored.
-- **Example Command:**
-    
-    Set to **Neon Mode** with speed 1, full brightness, and top-to-bottom direction:
-    
-    `echo 3,1,100,2,0,0,0 | sudo tee /sys/module/linuwu_sense/drivers/platform:acer-wmi/acer-wmi/four_zoned_kb/four_zone_mode`
-    
-    **Explanation:**
-    
-    - `3`: Neon Mode
-    - `1`: Speed (1)
-    - `100`: Full brightness
-    - `2`: Direction (top to bottom)
-    - `0`: Red (black for Neon)
-    - `0`: Green (black for Neon)
-    - `0`: Blue (black for Neon)
- 
-The thermal and fan profiles will be saved and loaded on each reboot, ensuring that the settings remain persistent across restarts.
-
-## 🚧 Roadmap:
-- [ ] GUI for keyboard rgb controls to make it noob friendly.
-- [x] Module Persistence After Reboot.
-- [ ] Custom Boot Logo Feature Support.
-- [ ] More device support currently only ( PHN16-71 ) is fully supported.
-
-## License
-GNU General Public License v3
-
-### 💖 Donations
-Donations are completely optional but show your love for open-source development and motivate me to add more features to this project!
-USDT (BEP20 - BNB Smart Chain): 0xDA7aa42B9Fc3041F20f4Ec828A70E9bDD54A6822
+*Developed for Acer Predator Helios Neo 14 (PHN14-51) with Linuwu-Sense v6.13*
