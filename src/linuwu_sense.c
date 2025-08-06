@@ -817,9 +817,8 @@ static int last_non_turbo_profile;
 static int power_profile = 0;  /* 0=Quiet(80W), 1=Balanced(100W), 2=Performance(125W) */
 static int gpu_power_limit = 80; /* Current GPU power limit in Watts */
 
-/* Predator-specific WMI GUID and method for power limit control */
-#define PREDATOR_WMI_GUID "79772EC5-04B1-4bfd-843C-61E7F77B6CC9"
-#define POWER_LIMIT_METHOD 0x25  /* Method ID for setting power limit */
+/* Power profile control using thermal profile WMI values */
+/* No additional defines needed - using existing thermal profile constants */
 
 enum acer_predator_v4_thermal_profile_ec {
 	ACER_PREDATOR_V4_THERMAL_PROFILE_ECO = 0x04,
@@ -3225,20 +3224,40 @@ static int acer_predator_state_save(void){
 /*
  * POWER PROFILE CONTROL FOR GPU POWER LIMIT
  */
-static int set_wmi_power_limit(int watts) {
-	struct acpi_buffer input = { sizeof(watts), &watts };
+static int set_wmi_power_limit(int profile_value) {
 	acpi_status status;
+	u64 thermal_profile_wmi;
 	
-	/* Use Predator-specific WMI GUID for power limit control */
-	status = wmi_evaluate_method(PREDATOR_WMI_GUID, 0, POWER_LIMIT_METHOD, &input, NULL);
+	/* Map power profile to thermal profile WMI value */
+	switch (profile_value) {
+		case 0:  /* Quiet mode */
+			thermal_profile_wmi = ACER_PREDATOR_V4_THERMAL_PROFILE_QUIET_WMI;
+			gpu_power_limit = 80;
+			break;
+		case 1:  /* Balanced mode */
+			thermal_profile_wmi = ACER_PREDATOR_V4_THERMAL_PROFILE_BALANCED_WMI;
+			gpu_power_limit = 100;
+			break;
+		case 2:  /* Performance mode */
+			thermal_profile_wmi = ACER_PREDATOR_V4_THERMAL_PROFILE_PERFORMANCE_WMI;
+			gpu_power_limit = 125;
+			break;
+		default:
+			pr_err("Invalid power profile value: %d\n", profile_value);
+			return -EINVAL;
+	}
+	
+	/* Use existing WMI gaming interface to set thermal profile */
+	status = WMI_gaming_execute_u64(
+		ACER_WMID_SET_GAMING_MISC_SETTING_METHODID, thermal_profile_wmi, NULL);
+	
 	if (ACPI_FAILURE(status)) {
-		pr_err("Failed to set power limit via WMI: %s\n", acpi_format_exception(status));
+		pr_err("Failed to set power profile via WMI: %s\n", acpi_format_exception(status));
 		return -EIO;
 	}
 	
-	/* Update global power limit */
-	gpu_power_limit = watts;
-	pr_info("GPU power limit set to %dW\n", watts);
+	pr_info("Power profile %d set via thermal profile WMI (target GPU limit: %dW)\n", 
+		profile_value, gpu_power_limit);
 	return 0;
 }
 
@@ -3253,7 +3272,6 @@ static ssize_t power_profile_store(struct device *dev,
 				  const char *buf, size_t count)
 {
 	int value;
-	int power_limit;
 	
 	if (kstrtoint(buf, 10, &value) != 0)
 		return -EINVAL;
@@ -3263,28 +3281,13 @@ static ssize_t power_profile_store(struct device *dev,
 	
 	power_profile = value;
 	
-	/* Set power limit based on profile */
-	switch(value) {
-		case 0:  /* Quiet mode */
-			power_limit = 80;
-			break;
-		case 1:  /* Balanced mode */
-			power_limit = 100;
-			break;
-		case 2:  /* Performance mode */
-			power_limit = 125;
-			break;
-		default:
-			return -EINVAL;
-	}
-	
-	/* Apply the power limit via WMI */
-	if (set_wmi_power_limit(power_limit) != 0) {
+	/* Apply the power profile via WMI */
+	if (set_wmi_power_limit(value) != 0) {
 		pr_err("Failed to set power profile to %d\n", value);
 		return -EIO;
 	}
 	
-	pr_info("Power profile set to %d (GPU limit: %dW)\n", value, power_limit);
+	pr_info("Power profile set to %d (target GPU limit: %dW)\n", value, gpu_power_limit);
 	return count;
 }
 
