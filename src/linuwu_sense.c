@@ -433,6 +433,11 @@ static struct quirk_entry quirk_acer_predator_phn16_71 = {
 	.four_zone_kb = 1,
 };
 
+static struct quirk_entry quirk_acer_predator_phn14_51 = {
+	.predator_v4 = 1,
+	.four_zone_kb = 1,
+};
+
 static struct quirk_entry quirk_acer_nitro = {
 	.nitro_sense = 1,
 };
@@ -652,6 +657,15 @@ static const struct dmi_system_id acer_quirks[] __initconst = {
 	},
 	{
 		.callback = dmi_matched,
+		.ident = "Acer Predator PHN14-51",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Predator PHN14-51"),
+		},
+		.driver_data = &quirk_acer_predator_phn14_51,
+	},
+	{
+		.callback = dmi_matched,
 		.ident = "Acer Predator PHN16-71",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
@@ -798,6 +812,14 @@ static bool platform_profile_support;
  * returning from turbo mode when the mode key is in toggle mode.
  */
 static int last_non_turbo_profile;
+
+/* Power profile control variables for GPU power limit */
+static int power_profile = 0;  /* 0=Quiet(80W), 1=Balanced(100W), 2=Performance(125W) */
+static int gpu_power_limit = 80; /* Current GPU power limit in Watts */
+
+/* Predator-specific WMI GUID and method for power limit control */
+#define PREDATOR_WMI_GUID "79772EC5-04B1-4bfd-843C-61E7F77B6CC9"
+#define POWER_LIMIT_METHOD 0x25  /* Method ID for setting power limit */
 
 enum acer_predator_v4_thermal_profile_ec {
 	ACER_PREDATOR_V4_THERMAL_PROFILE_ECO = 0x04,
@@ -3201,6 +3223,72 @@ static int acer_predator_state_save(void){
 }
 
 /*
+ * POWER PROFILE CONTROL FOR GPU POWER LIMIT
+ */
+static int set_wmi_power_limit(int watts) {
+	struct acpi_buffer input = { sizeof(watts), &watts };
+	acpi_status status;
+	
+	/* Use Predator-specific WMI GUID for power limit control */
+	status = wmi_evaluate_method(PREDATOR_WMI_GUID, 0, POWER_LIMIT_METHOD, &input, NULL);
+	if (ACPI_FAILURE(status)) {
+		pr_err("Failed to set power limit via WMI: %s\n", acpi_format_exception(status));
+		return -EIO;
+	}
+	
+	/* Update global power limit */
+	gpu_power_limit = watts;
+	pr_info("GPU power limit set to %dW\n", watts);
+	return 0;
+}
+
+static ssize_t power_profile_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", power_profile);
+}
+
+static ssize_t power_profile_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	int value;
+	int power_limit;
+	
+	if (kstrtoint(buf, 10, &value) != 0)
+		return -EINVAL;
+	
+	if (value < 0 || value > 2)
+		return -EINVAL;
+	
+	power_profile = value;
+	
+	/* Set power limit based on profile */
+	switch(value) {
+		case 0:  /* Quiet mode */
+			power_limit = 80;
+			break;
+		case 1:  /* Balanced mode */
+			power_limit = 100;
+			break;
+		case 2:  /* Performance mode */
+			power_limit = 125;
+			break;
+		default:
+			return -EINVAL;
+	}
+	
+	/* Apply the power limit via WMI */
+	if (set_wmi_power_limit(power_limit) != 0) {
+		pr_err("Failed to set power profile to %d\n", value);
+		return -EIO;
+	}
+	
+	pr_info("Power profile set to %d (GPU limit: %dW)\n", value, power_limit);
+	return count;
+}
+
+/*
  *LCD OVERRIDE CONTROLS
  */
 static ssize_t predator_lcd_override_show(struct device *dev, struct device_attribute *attr,char *buf){
@@ -3309,8 +3397,10 @@ static struct device_attribute usb_charging = __ATTR(usb_charging, 0644, predato
 static struct device_attribute battery_calibration = __ATTR(battery_calibration, 0644, predator_battery_calibration_show, preadtor_battery_calibration_store);
 static struct device_attribute battery_limiter = __ATTR(battery_limiter, 0644, predator_battery_limit_show, predator_battery_limit_store);
 static struct device_attribute fan_speed = __ATTR(fan_speed, 0644, predator_fan_speed_show, predator_fan_speed_store);
+static struct device_attribute power_profile_attr = __ATTR(power_profile, 0644, power_profile_show, power_profile_store);
 static struct device_attribute lcd_override = __ATTR(lcd_override, 0644, predator_lcd_override_show, predator_lcd_override_store);
 static struct attribute *predator_sense_attrs[] = {
+	&power_profile_attr.attr,
 	&lcd_override.attr,
 	&fan_speed.attr,
 	&battery_limiter.attr,

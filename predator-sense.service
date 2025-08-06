@@ -1,0 +1,13 @@
+[Unit]
+Description=Predator Sense Power Profile Service - Set Performance Mode
+After=multi-user.target
+After=linuwu_sense.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/bash -c 'echo 2 > /sys/devices/platform/acer-wmi/predator_sense/power_profile'
+ExecStop=/bin/bash -c 'echo 0 > /sys/devices/platform/acer-wmi/predator_sense/power_profile'
+
+[Install]
+WantedBy=multi-user.target
