@@ -35,7 +35,16 @@ DIR_RIGHT=1
 
 # Convert hex color to RGB
 hex_to_rgb() {
-    local hex="${1#\#}"  # Remove # if present
+    local hex="$1"
+    # Remove # if present, handle various formats
+    hex="${hex#\#}"
+    hex="${hex#'#'}"
+    hex="${hex#\"#\"}"
+    # Ensure it's 6 characters
+    if [ ${#hex} -ne 6 ]; then
+        echo "255,255,255"  # Default to white if invalid
+        return 1
+    fi
     printf "%d,%d,%d" 0x${hex:0:2} 0x${hex:2:2} 0x${hex:4:2}
 }
 
@@ -138,11 +147,16 @@ case "$1" in
         if [ $# -eq 1 ]; then
             echo "Setting keyboard to STATIC mode (white)"
             set_mode $MODE_STATIC 0 100 0 255 255 255
-        elif [ $# -eq 2 ]; then
-            # Color provided as hex
-            RGB=$(hex_to_rgb "$2")
+        elif [ $# -eq 2 ] || [ $# -eq 3 ]; then
+            # Color provided as hex (might be split if # was interpreted)
+            COLOR="$2"
+            # Check if argument starts with a hex digit (meaning # was stripped)
+            if [[ "$2" =~ ^[0-9A-Fa-f] ]] && [ ${#2} -eq 6 ]; then
+                COLOR="#$2"
+            fi
+            RGB=$(hex_to_rgb "$COLOR")
             IFS=',' read -r r g b <<< "$RGB"
-            echo "Setting keyboard to STATIC mode (color: $2)"
+            echo "Setting keyboard to STATIC mode (color: $COLOR)"
             set_mode $MODE_STATIC 0 100 0 $r $g $b
         elif [ $# -eq 4 ]; then
             # RGB values provided
@@ -151,6 +165,7 @@ case "$1" in
         else
             echo "Usage: $0 static [hex_color | r g b]"
             echo "Example: $0 static #ff0000"
+            echo "Example: $0 static ff0000"
             echo "Example: $0 static 255 0 0"
             exit 1
         fi
