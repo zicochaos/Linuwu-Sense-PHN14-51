@@ -103,6 +103,10 @@ quick_menu() {
     echo -e "  ${GREEN}7${NC} │ 💻 ${BOLD}Coding${NC}      - Developer focused"
     echo -e "  ${GREEN}8${NC} │ 🎨 ${BOLD}Creative${NC}    - For content creation"
     echo ""
+    echo -e "  ${CYAN}0${NC} │ 🔅 Keyboard lights off"
+    echo -e "  ${CYAN}+${NC} │ 🔆 Increase brightness"
+    echo -e "  ${CYAN}-${NC} │ 🔅 Decrease brightness"
+    echo ""
     echo -e "  ${CYAN}s${NC} │ Show current status"
     echo -e "  ${CYAN}a${NC} │ Advanced settings"
     echo -e "  ${CYAN}q${NC} │ Quit"
@@ -120,6 +124,35 @@ quick_menu() {
         6) apply_movie ;;
         7) apply_coding ;;
         8) apply_creative ;;
+        0)
+            $KEYBOARD_SCRIPT off > /dev/null 2>&1
+            echo -e "${GREEN}✓ Keyboard backlight turned off${NC}"
+            sleep 1
+            clear
+            quick_menu
+            ;;
+        +)
+            # Get current brightness from four_zone_mode
+            CURRENT=$(cat /sys/devices/platform/acer-wmi/four_zoned_kb/four_zone_mode | cut -d',' -f3)
+            NEW_BRIGHT=$((CURRENT + 20))
+            if [ $NEW_BRIGHT -gt 100 ]; then NEW_BRIGHT=100; fi
+            $KEYBOARD_SCRIPT brightness $NEW_BRIGHT > /dev/null 2>&1
+            echo -e "${GREEN}✓ Brightness: $NEW_BRIGHT%${NC}"
+            sleep 1
+            clear
+            quick_menu
+            ;;
+        -)
+            # Get current brightness from four_zone_mode
+            CURRENT=$(cat /sys/devices/platform/acer-wmi/four_zoned_kb/four_zone_mode | cut -d',' -f3)
+            NEW_BRIGHT=$((CURRENT - 20))
+            if [ $NEW_BRIGHT -lt 0 ]; then NEW_BRIGHT=0; fi
+            $KEYBOARD_SCRIPT brightness $NEW_BRIGHT > /dev/null 2>&1
+            echo -e "${GREEN}✓ Brightness: $NEW_BRIGHT%${NC}"
+            sleep 1
+            clear
+            quick_menu
+            ;;
         s|S) 
             clear
             show_banner
@@ -167,6 +200,7 @@ advanced_menu() {
     echo -e "  ${GREEN}k1${NC} │ RGB Effects"
     echo -e "  ${GREEN}k2${NC} │ RGB Profiles"
     echo -e "  ${GREEN}k3${NC} │ Custom Colors"
+    echo -e "  ${GREEN}kb${NC} │ Brightness Control"
     echo ""
     echo -e "${YELLOW}Battery:${NC}"
     echo -e "  ${GREEN}be${NC} │ Enable 80% limit"
@@ -194,6 +228,15 @@ advanced_menu() {
         k1) rgb_effects_menu ;;
         k2) rgb_profiles_menu ;;
         k3) rgb_custom_menu ;;
+        kb) 
+            echo -n "Enter brightness (0-100): "
+            read brightness
+            if [ "$brightness" -ge 0 ] && [ "$brightness" -le 100 ] 2>/dev/null; then
+                $KEYBOARD_SCRIPT brightness $brightness && echo -e "${GREEN}✓ Brightness set to $brightness%${NC}"
+            else
+                echo -e "${RED}Invalid brightness value${NC}"
+            fi
+            ;;
         be) $BATTERY_SCRIPT enable && echo -e "${GREEN}✓ Battery limiter enabled${NC}" ;;
         bd) $BATTERY_SCRIPT disable && echo -e "${GREEN}✓ Battery limiter disabled${NC}" ;;
         b) 
