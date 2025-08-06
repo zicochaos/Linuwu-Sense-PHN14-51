@@ -3,12 +3,13 @@
 # Predator Profile Control Script
 # Controls GPU power limit via Predator Sense power profiles
 #
-# Usage: predator-profile {quiet|balanced|performance|status}
+# Usage: predator-profile {quiet|balanced|performance|turbo|status}
 #
 # Profiles:
-#   quiet       - 80W GPU power limit (power saving)
-#   balanced    - 100W GPU power limit (balanced performance)
-#   performance - 125W GPU power limit (maximum performance)
+#   quiet       - 60W GPU power limit (power saving)
+#   balanced    - 80W GPU power limit (balanced performance)
+#   performance - 100W GPU power limit (high performance)
+#   turbo       - 125W GPU power limit (maximum performance)
 #   status      - Show current profile
 
 SYSFS_PATH="/sys/devices/platform/acer-wmi/predator_sense/power_profile"
@@ -24,7 +25,7 @@ case "$1" in
     quiet)
         echo 0 | sudo tee $SYSFS_PATH > /dev/null
         if [ $? -eq 0 ]; then
-            echo "Power profile set to QUIET (80W GPU limit)"
+            echo "Power profile set to QUIET (60W GPU limit)"
         else
             echo "Failed to set power profile"
             exit 1
@@ -33,7 +34,7 @@ case "$1" in
     balanced)
         echo 1 | sudo tee $SYSFS_PATH > /dev/null
         if [ $? -eq 0 ]; then
-            echo "Power profile set to BALANCED (100W GPU limit)"
+            echo "Power profile set to BALANCED (80W GPU limit)"
         else
             echo "Failed to set power profile"
             exit 1
@@ -42,7 +43,16 @@ case "$1" in
     performance)
         echo 2 | sudo tee $SYSFS_PATH > /dev/null
         if [ $? -eq 0 ]; then
-            echo "Power profile set to PERFORMANCE (125W GPU limit)"
+            echo "Power profile set to PERFORMANCE (100W GPU limit)"
+        else
+            echo "Failed to set power profile"
+            exit 1
+        fi
+        ;;
+    turbo)
+        echo 3 | sudo tee $SYSFS_PATH > /dev/null
+        if [ $? -eq 0 ]; then
+            echo "Power profile set to TURBO (125W GPU limit)"
         else
             echo "Failed to set power profile"
             exit 1
@@ -51,9 +61,10 @@ case "$1" in
     status)
         CURRENT=$(cat $SYSFS_PATH)
         case $CURRENT in
-            0) echo "Current profile: QUIET (80W GPU limit)" ;;
-            1) echo "Current profile: BALANCED (100W GPU limit)" ;;
-            2) echo "Current profile: PERFORMANCE (125W GPU limit)" ;;
+            0) echo "Current profile: QUIET (60W GPU limit)" ;;
+            1) echo "Current profile: BALANCED (80W GPU limit)" ;;
+            2) echo "Current profile: PERFORMANCE (100W GPU limit)" ;;
+            3) echo "Current profile: TURBO (125W GPU limit)" ;;
             *) echo "Current profile: UNKNOWN ($CURRENT)" ;;
         esac
         
@@ -65,12 +76,13 @@ case "$1" in
         fi
         ;;
     *)
-        echo "Usage: $0 {quiet|balanced|performance|status}"
+        echo "Usage: $0 {quiet|balanced|performance|turbo|status}"
         echo ""
         echo "Profiles:"
-        echo "  quiet       - 80W GPU power limit (power saving)"
-        echo "  balanced    - 100W GPU power limit (balanced performance)"
-        echo "  performance - 125W GPU power limit (maximum performance)"
+        echo "  quiet       - 60W GPU power limit (power saving)"
+        echo "  balanced    - 80W GPU power limit (balanced performance)"
+        echo "  performance - 100W GPU power limit (high performance)"
+        echo "  turbo       - 125W GPU power limit (maximum performance)"
         echo "  status      - Show current profile and GPU power info"
         exit 1
         ;;

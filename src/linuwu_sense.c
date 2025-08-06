@@ -814,8 +814,8 @@ static bool platform_profile_support;
 static int last_non_turbo_profile;
 
 /* Power profile control variables for GPU power limit */
-static int power_profile = 0;  /* 0=Quiet(80W), 1=Balanced(100W), 2=Performance(125W) */
-static int gpu_power_limit = 80; /* Current GPU power limit in Watts */
+static int power_profile = 0;  /* 0=Quiet, 1=Balanced, 2=Performance, 3=Turbo */
+static int gpu_power_limit = 60; /* Current GPU power limit in Watts */
 
 /* Power profile control using thermal profile WMI values */
 /* No additional defines needed - using existing thermal profile constants */
@@ -3232,14 +3232,18 @@ static int set_wmi_power_limit(int profile_value) {
 	switch (profile_value) {
 		case 0:  /* Quiet mode */
 			thermal_profile_wmi = ACER_PREDATOR_V4_THERMAL_PROFILE_QUIET_WMI;
-			gpu_power_limit = 80;
+			gpu_power_limit = 60;
 			break;
 		case 1:  /* Balanced mode */
 			thermal_profile_wmi = ACER_PREDATOR_V4_THERMAL_PROFILE_BALANCED_WMI;
-			gpu_power_limit = 100;
+			gpu_power_limit = 80;
 			break;
 		case 2:  /* Performance mode */
 			thermal_profile_wmi = ACER_PREDATOR_V4_THERMAL_PROFILE_PERFORMANCE_WMI;
+			gpu_power_limit = 100;
+			break;
+		case 3:  /* Turbo mode - Maximum performance */
+			thermal_profile_wmi = ACER_PREDATOR_V4_THERMAL_PROFILE_TURBO_WMI;
 			gpu_power_limit = 125;
 			break;
 		default:
@@ -3276,7 +3280,7 @@ static ssize_t power_profile_store(struct device *dev,
 	if (kstrtoint(buf, 10, &value) != 0)
 		return -EINVAL;
 	
-	if (value < 0 || value > 2)
+	if (value < 0 || value > 3)
 		return -EINVAL;
 	
 	power_profile = value;
