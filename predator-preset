@@ -1,0 +1,121 @@
+#!/bin/bash
+#
+# Predator Preset Manager
+# Applies predefined combinations of power profiles and fan settings
+#
+# Usage: predator-preset {silent|normal|gaming|extreme|custom}
+
+PROFILE_SCRIPT="/home/sbochna/Projects/Linuwu-Sense-PHN14-51/predator-profile"
+FAN_SCRIPT="/home/sbochna/Projects/Linuwu-Sense-PHN14-51/predator-fan"
+
+# Make sure scripts exist
+if [ ! -x "$PROFILE_SCRIPT" ]; then
+    PROFILE_SCRIPT="$(dirname $0)/predator-profile"
+fi
+
+if [ ! -x "$FAN_SCRIPT" ]; then
+    FAN_SCRIPT="$(dirname $0)/predator-fan"
+fi
+
+case "$1" in
+    silent)
+        echo "Applying SILENT preset..."
+        echo "  - Power: Quiet mode (60W)"
+        echo "  - Fans: Auto (minimum noise)"
+        $PROFILE_SCRIPT quiet
+        $FAN_SCRIPT auto
+        echo ""
+        echo "Silent preset applied - Minimal power and noise"
+        ;;
+    
+    normal)
+        echo "Applying NORMAL preset..."
+        echo "  - Power: Balanced mode (80W)"
+        echo "  - Fans: Auto"
+        $PROFILE_SCRIPT balanced
+        $FAN_SCRIPT auto
+        echo ""
+        echo "Normal preset applied - Balanced performance"
+        ;;
+    
+    gaming)
+        echo "Applying GAMING preset..."
+        echo "  - Power: Performance mode (100W)"
+        echo "  - Fans: Custom (60% CPU, 70% GPU)"
+        $PROFILE_SCRIPT performance
+        $FAN_SCRIPT custom 60 70
+        echo ""
+        echo "Gaming preset applied - High performance with moderate cooling"
+        ;;
+    
+    extreme)
+        echo "Applying EXTREME preset..."
+        echo "  - Power: Turbo mode (125W)"
+        echo "  - Fans: Maximum (100%)"
+        $PROFILE_SCRIPT turbo
+        $FAN_SCRIPT max
+        echo ""
+        echo "EXTREME preset applied - Maximum performance!"
+        echo "Warning: This will be LOUD and consume maximum power!"
+        ;;
+    
+    custom)
+        if [ $# -ne 5 ]; then
+            echo "Custom preset requires all parameters:"
+            echo "Usage: $0 custom <power_profile> <cpu_fan> <gpu_fan>"
+            echo ""
+            echo "Power profiles: quiet, balanced, performance, turbo"
+            echo "Fan speeds: 0-100 (0 = auto)"
+            echo ""
+            echo "Example: $0 custom performance 50 60"
+            exit 1
+        fi
+        
+        POWER=$2
+        CPU_FAN=$3
+        GPU_FAN=$4
+        
+        echo "Applying CUSTOM preset..."
+        echo "  - Power: $POWER"
+        echo "  - Fans: CPU=$CPU_FAN%, GPU=$GPU_FAN%"
+        
+        $PROFILE_SCRIPT $POWER
+        if [ "$CPU_FAN" = "0" ] && [ "$GPU_FAN" = "0" ]; then
+            $FAN_SCRIPT auto
+        else
+            $FAN_SCRIPT custom $CPU_FAN $GPU_FAN
+        fi
+        
+        echo ""
+        echo "Custom preset applied"
+        ;;
+    
+    status)
+        $PROFILE_SCRIPT status
+        ;;
+    
+    *)
+        echo "Predator Preset Manager"
+        echo ""
+        echo "Usage: $0 {silent|normal|gaming|extreme|custom|status}"
+        echo ""
+        echo "Presets:"
+        echo "  silent  - Quiet mode (60W) + Auto fans (minimal noise)"
+        echo "  normal  - Balanced mode (80W) + Auto fans"
+        echo "  gaming  - Performance mode (100W) + 60/70% fans"
+        echo "  extreme - Turbo mode (125W) + Maximum fans"
+        echo "  custom  - Set custom profile and fan speeds"
+        echo "  status  - Show current settings"
+        echo ""
+        echo "Custom usage:"
+        echo "  $0 custom <power> <cpu_fan> <gpu_fan>"
+        echo ""
+        echo "Examples:"
+        echo "  $0 silent                    # Quiet operation"
+        echo "  $0 gaming                    # Gaming performance"
+        echo "  $0 extreme                   # Maximum everything"
+        echo "  $0 custom turbo 80 90        # Turbo with 80/90% fans"
+        echo "  $0 custom balanced 0 0       # Balanced with auto fans"
+        exit 1
+        ;;
+esac

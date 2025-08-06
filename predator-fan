@@ -1,0 +1,167 @@
+#!/bin/bash
+#
+# Predator Fan Control Script
+# Controls CPU and GPU fan speeds via Predator Sense
+#
+# Usage: predator-fan {auto|max|custom|status|help}
+#
+# Modes:
+#   auto        - Automatic fan control (0,0)
+#   max         - Maximum fan speed (100,100)
+#   custom      - Set custom speeds: predator-fan custom <cpu> <gpu>
+#   status      - Show current fan speeds and temperatures
+#   help        - Show this help message
+
+SYSFS_PATH="/sys/devices/platform/acer-wmi/predator_sense/fan_speed"
+
+# Check if sysfs interface exists
+if [ ! -f "$SYSFS_PATH" ]; then
+    echo "Error: Predator Sense fan control interface not found!"
+    echo "Make sure the linuwu_sense module is loaded."
+    exit 1
+fi
+
+# Function to read actual fan RPMs
+get_fan_rpms() {
+    # Try to get actual fan speeds from sensors
+    if command -v sensors &> /dev/null; then
+        echo "Fan RPMs (from sensors):"
+        sensors | grep -E "fan|Fan" | grep -v "0 RPM" || echo "  No fan RPM data available"
+    fi
+}
+
+# Function to get temperatures
+get_temps() {
+    echo "Temperatures:"
+    if command -v sensors &> /dev/null; then
+        sensors | grep -E "Core|Package|GPU|temp" | head -10
+    fi
+    if command -v nvidia-smi &> /dev/null; then
+        GPU_TEMP=$(nvidia-smi -q -d TEMPERATURE | grep "GPU Current Temp" | awk '{print $5}')
+        if [ ! -z "$GPU_TEMP" ]; then
+            echo "  GPU Temperature:        $GPU_TEMP C"
+        fi
+    fi
+}
+
+case "$1" in
+    auto)
+        echo "0,0" | sudo tee $SYSFS_PATH > /dev/null
+        if [ $? -eq 0 ]; then
+            echo "Fan mode set to AUTO (system controlled)"
+            echo "Fans will adjust based on temperature automatically"
+        else
+            echo "Failed to set fan mode"
+            exit 1
+        fi
+        ;;
+    
+    max)
+        echo "100,100" | sudo tee $SYSFS_PATH > /dev/null
+        if [ $? -eq 0 ]; then
+            echo "Fan mode set to MAXIMUM (100% speed)"
+            echo "Warning: This will be loud!"
+        else
+            echo "Failed to set fan mode"
+            exit 1
+        fi
+        ;;
+    
+    custom)
+        if [ $# -ne 3 ]; then
+            echo "Error: Custom mode requires CPU and GPU fan speeds"
+            echo "Usage: $0 custom <cpu_speed> <gpu_speed>"
+            echo "Example: $0 custom 50 70"
+            echo "Values must be between 0-100"
+            exit 1
+        fi
+        
+        CPU_SPEED=$2
+        GPU_SPEED=$3
+        
+        # Validate input
+        if ! [[ "$CPU_SPEED" =~ ^[0-9]+$ ]] || [ "$CPU_SPEED" -lt 0 ] || [ "$CPU_SPEED" -gt 100 ]; then
+            echo "Error: CPU speed must be between 0 and 100"
+            exit 1
+        fi
+        
+        if ! [[ "$GPU_SPEED" =~ ^[0-9]+$ ]] || [ "$GPU_SPEED" -lt 0 ] || [ "$GPU_SPEED" -gt 100 ]; then
+            echo "Error: GPU speed must be between 0 and 100"
+            exit 1
+        fi
+        
+        echo "$CPU_SPEED,$GPU_SPEED" | sudo tee $SYSFS_PATH > /dev/null
+        if [ $? -eq 0 ]; then
+            echo "Fan speeds set to:"
+            echo "  CPU: $CPU_SPEED%"
+            echo "  GPU: $GPU_SPEED%"
+            
+            if [ "$CPU_SPEED" -eq 0 ] && [ "$GPU_SPEED" -ne 0 ]; then
+                echo "Mode: GPU only custom control"
+            elif [ "$CPU_SPEED" -ne 0 ] && [ "$GPU_SPEED" -eq 0 ]; then
+                echo "Mode: CPU only custom control"
+            else
+                echo "Mode: Mixed custom control"
+            fi
+        else
+            echo "Failed to set fan speeds"
+            exit 1
+        fi
+        ;;
+    
+    status)
+        CURRENT=$(cat $SYSFS_PATH)
+        CPU_FAN=$(echo $CURRENT | cut -d',' -f1)
+        GPU_FAN=$(echo $CURRENT | cut -d',' -f2)
+        
+        echo "Current Fan Settings:"
+        echo "  CPU Fan: $CPU_FAN%"
+        echo "  GPU Fan: $GPU_FAN%"
+        
+        if [ "$CPU_FAN" = "0" ] && [ "$GPU_FAN" = "0" ]; then
+            echo "  Mode: AUTO (system controlled)"
+        elif [ "$CPU_FAN" = "100" ] && [ "$GPU_FAN" = "100" ]; then
+            echo "  Mode: MAXIMUM"
+        elif [ "$CPU_FAN" = "0" ] && [ "$GPU_FAN" != "0" ]; then
+            echo "  Mode: GPU only custom control"
+        elif [ "$CPU_FAN" != "0" ] && [ "$GPU_FAN" = "0" ]; then
+            echo "  Mode: CPU only custom control"
+        else
+            echo "  Mode: CUSTOM"
+        fi
+        
+        echo ""
+        get_temps
+        echo ""
+        get_fan_rpms
+        ;;
+    
+    help|--help|-h)
+        echo "Predator Fan Control Script"
+        echo ""
+        echo "Usage: $0 {auto|max|custom|status|help}"
+        echo ""
+        echo "Modes:"
+        echo "  auto        - Automatic fan control (system managed)"
+        echo "  max         - Maximum fan speed (100% for both fans)"
+        echo "  custom      - Set custom speeds: $0 custom <cpu> <gpu>"
+        echo "  status      - Show current fan speeds and temperatures"
+        echo "  help        - Show this help message"
+        echo ""
+        echo "Examples:"
+        echo "  $0 auto          # Let system control fans"
+        echo "  $0 max           # Set both fans to 100%"
+        echo "  $0 custom 50 70  # Set CPU to 50%, GPU to 70%"
+        echo "  $0 custom 0 80   # Auto CPU, 80% GPU"
+        echo "  $0 status        # Show current settings"
+        echo ""
+        echo "Note: Fan speeds are in percentage (0-100)"
+        echo "      0 = Auto/minimum, 100 = Maximum"
+        ;;
+    
+    *)
+        echo "Usage: $0 {auto|max|custom|status|help}"
+        echo "Try '$0 help' for more information"
+        exit 1
+        ;;
+esac

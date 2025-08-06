@@ -3,16 +3,22 @@
 # Predator Profile Control Script
 # Controls GPU power limit via Predator Sense power profiles
 #
-# Usage: predator-profile {quiet|balanced|performance|turbo|status}
+# Usage: predator-profile {quiet|balanced|performance|turbo|status|fan-auto|fan-max|fan-custom}
 #
-# Profiles:
+# Power Profiles:
 #   quiet       - 60W GPU power limit (power saving)
 #   balanced    - 80W GPU power limit (balanced performance)
 #   performance - 100W GPU power limit (high performance)
 #   turbo       - 125W GPU power limit (maximum performance)
 #   status      - Show current profile
+#
+# Fan Control:
+#   fan-auto    - Set fans to automatic mode
+#   fan-max     - Set fans to maximum speed
+#   fan-custom  - Set custom fan speeds (CPU,GPU)
 
 SYSFS_PATH="/sys/devices/platform/acer-wmi/predator_sense/power_profile"
+FAN_PATH="/sys/devices/platform/acer-wmi/predator_sense/fan_speed"
 
 # Check if sysfs interface exists
 if [ ! -f "$SYSFS_PATH" ]; then
@@ -68,6 +74,22 @@ case "$1" in
             *) echo "Current profile: UNKNOWN ($CURRENT)" ;;
         esac
         
+        # Show fan status
+        if [ -f "$FAN_PATH" ]; then
+            FAN_STATUS=$(cat $FAN_PATH)
+            CPU_FAN=$(echo $FAN_STATUS | cut -d',' -f1)
+            GPU_FAN=$(echo $FAN_STATUS | cut -d',' -f2)
+            echo ""
+            echo "Fan Settings: CPU=$CPU_FAN%, GPU=$GPU_FAN%"
+            if [ "$CPU_FAN" = "0" ] && [ "$GPU_FAN" = "0" ]; then
+                echo "Fan Mode: AUTO"
+            elif [ "$CPU_FAN" = "100" ] && [ "$GPU_FAN" = "100" ]; then
+                echo "Fan Mode: MAXIMUM"
+            else
+                echo "Fan Mode: CUSTOM"
+            fi
+        fi
+        
         # Try to show GPU power limit from nvidia-smi
         if command -v nvidia-smi &> /dev/null; then
             echo ""
@@ -75,15 +97,59 @@ case "$1" in
             nvidia-smi -q -d POWER | grep -E "Power Limit|Power Draw" | head -4
         fi
         ;;
+    fan-auto)
+        if [ -f "$FAN_PATH" ]; then
+            echo "0,0" | sudo tee $FAN_PATH > /dev/null
+            echo "Fans set to AUTO mode (system controlled)"
+        else
+            echo "Fan control not available"
+            exit 1
+        fi
+        ;;
+    fan-max)
+        if [ -f "$FAN_PATH" ]; then
+            echo "100,100" | sudo tee $FAN_PATH > /dev/null
+            echo "Fans set to MAXIMUM speed (100%)"
+        else
+            echo "Fan control not available"
+            exit 1
+        fi
+        ;;
+    fan-custom)
+        if [ -f "$FAN_PATH" ]; then
+            if [ $# -ne 3 ]; then
+                echo "Usage: $0 fan-custom <cpu_speed> <gpu_speed>"
+                echo "Example: $0 fan-custom 50 70"
+                exit 1
+            fi
+            CPU=$2
+            GPU=$3
+            echo "$CPU,$GPU" | sudo tee $FAN_PATH > /dev/null
+            echo "Fans set to: CPU=$CPU%, GPU=$GPU%"
+        else
+            echo "Fan control not available"
+            exit 1
+        fi
+        ;;
     *)
-        echo "Usage: $0 {quiet|balanced|performance|turbo|status}"
+        echo "Usage: $0 {quiet|balanced|performance|turbo|status|fan-auto|fan-max|fan-custom}"
         echo ""
-        echo "Profiles:"
+        echo "Power Profiles:"
         echo "  quiet       - 60W GPU power limit (power saving)"
         echo "  balanced    - 80W GPU power limit (balanced performance)"
         echo "  performance - 100W GPU power limit (high performance)"
         echo "  turbo       - 125W GPU power limit (maximum performance)"
         echo "  status      - Show current profile and GPU power info"
+        echo ""
+        echo "Fan Control:"
+        echo "  fan-auto    - Set fans to automatic mode"
+        echo "  fan-max     - Set fans to maximum speed"
+        echo "  fan-custom  - Set custom fan speeds: fan-custom <cpu> <gpu>"
+        echo ""
+        echo "Examples:"
+        echo "  $0 turbo              # Set to turbo mode"
+        echo "  $0 fan-max            # Set fans to 100%"
+        echo "  $0 fan-custom 50 70   # Set CPU fan to 50%, GPU to 70%"
         exit 1
         ;;
 esac
