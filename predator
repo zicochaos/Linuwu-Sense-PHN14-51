@@ -557,6 +557,19 @@ case "$1" in
         show_banner
         show_status
         ;;
+
+    # Settings management
+    save|save-settings)
+        $SCRIPT_DIR/predator-settings save
+        ;;
+
+    restore|restore-settings)
+        $SCRIPT_DIR/predator-settings restore
+        ;;
+
+    auto-restore)
+        $SCRIPT_DIR/predator-settings auto-restore
+        ;;
     
     # Help
     help|--help|-h)

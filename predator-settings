@@ -1,0 +1,249 @@
+#!/bin/bash
+#
+# Predator Settings Manager - Save and restore settings across reboots
+#
+# Usage: predator-settings {save|restore|status|auto-restore|disable-auto}
+#
+
+SETTINGS_FILE="/etc/predator-sense/settings.conf"
+SETTINGS_DIR="/etc/predator-sense"
+SYSTEMD_SERVICE="/etc/systemd/system/predator-restore.service"
+
+# Ensure running with proper permissions for restore
+if [[ "$1" == "restore" || "$1" == "auto-restore" ]] && [[ $EUID -ne 0 ]]; then
+    exec sudo "$0" "$@"
+fi
+
+# Color codes
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+# Read current settings from sysfs
+read_current_settings() {
+    local profile fan battery rgb_mode rgb_bright
+
+    # Power profile
+    if [ -f /sys/devices/platform/acer-wmi/predator_sense/power_profile ]; then
+        profile=$(cat /sys/devices/platform/acer-wmi/predator_sense/power_profile)
+    fi
+
+    # Fan settings
+    if [ -f /sys/devices/platform/acer-wmi/predator_sense/fan_speed ]; then
+        fan=$(cat /sys/devices/platform/acer-wmi/predator_sense/fan_speed)
+    fi
+
+    # Battery limiter
+    if [ -f /sys/devices/platform/acer-wmi/predator_sense/battery_limiter ]; then
+        battery=$(cat /sys/devices/platform/acer-wmi/predator_sense/battery_limiter)
+    fi
+
+    # RGB settings
+    if [ -f /sys/devices/platform/acer-wmi/four_zoned_kb/four_zone_mode ]; then
+        rgb_mode=$(cat /sys/devices/platform/acer-wmi/four_zoned_kb/four_zone_mode)
+    fi
+
+    echo "POWER_PROFILE=$profile"
+    echo "FAN_SPEED=$fan"
+    echo "BATTERY_LIMITER=$battery"
+    echo "RGB_MODE=$rgb_mode"
+}
+
+# Save current settings
+save_settings() {
+    # Create directory if it doesn't exist
+    [ ! -d "$SETTINGS_DIR" ] && sudo mkdir -p "$SETTINGS_DIR"
+
+    echo -e "${YELLOW}Saving current settings...${NC}"
+
+    # Save settings to file
+    read_current_settings | sudo tee "$SETTINGS_FILE" > /dev/null
+
+    echo -e "${GREEN}✓ Settings saved to $SETTINGS_FILE${NC}"
+    echo ""
+    echo "Saved configuration:"
+    cat "$SETTINGS_FILE"
+}
+
+# Restore saved settings
+restore_settings() {
+    if [ ! -f "$SETTINGS_FILE" ]; then
+        echo -e "${RED}No saved settings found!${NC}"
+        echo "Run 'predator-settings save' first to save your current configuration"
+        exit 1
+    fi
+
+    echo -e "${YELLOW}Restoring saved settings...${NC}"
+
+    # Source the settings file
+    source "$SETTINGS_FILE"
+
+    # Restore power profile
+    if [ -n "$POWER_PROFILE" ]; then
+        echo "$POWER_PROFILE" > /sys/devices/platform/acer-wmi/predator_sense/power_profile 2>/dev/null
+        case $POWER_PROFILE in
+            0) echo "  Power Profile: Quiet (60W)" ;;
+            1) echo "  Power Profile: Balanced (80W)" ;;
+            2) echo "  Power Profile: Performance (100W)" ;;
+            3) echo "  Power Profile: Turbo (125W)" ;;
+        esac
+    fi
+
+    # Restore fan settings
+    if [ -n "$FAN_SPEED" ]; then
+        echo "$FAN_SPEED" > /sys/devices/platform/acer-wmi/predator_sense/fan_speed 2>/dev/null
+        IFS=',' read -r CPU GPU <<< "$FAN_SPEED"
+        if [ "$CPU" = "0" ] && [ "$GPU" = "0" ]; then
+            echo "  Fan Mode: Auto"
+        else
+            echo "  Fan Mode: Custom (CPU:$CPU% GPU:$GPU%)"
+        fi
+    fi
+
+    # Restore battery limiter
+    if [ -n "$BATTERY_LIMITER" ]; then
+        echo "$BATTERY_LIMITER" > /sys/devices/platform/acer-wmi/predator_sense/battery_limiter 2>/dev/null
+        if [ "$BATTERY_LIMITER" = "1" ]; then
+            echo "  Battery Limiter: Enabled (80%)"
+        else
+            echo "  Battery Limiter: Disabled (100%)"
+        fi
+    fi
+
+    # Restore RGB settings
+    if [ -n "$RGB_MODE" ]; then
+        echo "$RGB_MODE" > /sys/devices/platform/acer-wmi/four_zoned_kb/four_zone_mode 2>/dev/null
+        echo "  RGB Settings: Restored"
+    fi
+
+    echo -e "${GREEN}✓ Settings restored successfully${NC}"
+}
+
+# Show current vs saved settings
+show_status() {
+    echo -e "${YELLOW}Current System Settings:${NC}"
+    current=$(read_current_settings)
+    echo "$current" | while read line; do
+        echo "  $line"
+    done
+
+    echo ""
+
+    if [ -f "$SETTINGS_FILE" ]; then
+        echo -e "${YELLOW}Saved Settings:${NC}"
+        cat "$SETTINGS_FILE" | while read line; do
+            echo "  $line"
+        done
+
+        # Check if auto-restore is enabled
+        echo ""
+        if [ -f "$SYSTEMD_SERVICE" ] && systemctl is-enabled predator-restore.service &>/dev/null; then
+            echo -e "${GREEN}✓ Auto-restore is ENABLED${NC}"
+        else
+            echo -e "${YELLOW}○ Auto-restore is DISABLED${NC}"
+            echo "  Run 'predator-settings auto-restore' to enable"
+        fi
+    else
+        echo -e "${YELLOW}No saved settings found${NC}"
+        echo "Run 'predator-settings save' to save current configuration"
+    fi
+}
+
+# Enable auto-restore at boot
+enable_auto_restore() {
+    # First save current settings if not already saved
+    if [ ! -f "$SETTINGS_FILE" ]; then
+        save_settings
+    fi
+
+    echo -e "${YELLOW}Enabling auto-restore at boot...${NC}"
+
+    # Create systemd service
+    cat <<EOF | sudo tee "$SYSTEMD_SERVICE" > /dev/null
+[Unit]
+Description=Restore Predator Settings at Boot
+After=multi-user.target modules.target
+After=systemd-modules-load.service
+
+[Service]
+Type=oneshot
+ExecStartPre=/bin/sleep 3
+ExecStart=/usr/local/bin/predator-settings restore
+RemainAfterExit=yes
+StandardOutput=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    # Copy this script to /usr/local/bin if not already there
+    if [ ! -f /usr/local/bin/predator-settings ]; then
+        sudo cp "$0" /usr/local/bin/predator-settings
+        sudo chmod +x /usr/local/bin/predator-settings
+    fi
+
+    # Enable and start the service
+    sudo systemctl daemon-reload
+    sudo systemctl enable predator-restore.service
+
+    echo -e "${GREEN}✓ Auto-restore enabled!${NC}"
+    echo "Your settings will be automatically restored after each reboot"
+    echo ""
+    echo "Current saved settings:"
+    cat "$SETTINGS_FILE"
+}
+
+# Disable auto-restore
+disable_auto_restore() {
+    echo -e "${YELLOW}Disabling auto-restore...${NC}"
+
+    if [ -f "$SYSTEMD_SERVICE" ]; then
+        sudo systemctl disable predator-restore.service 2>/dev/null
+        sudo systemctl stop predator-restore.service 2>/dev/null
+        sudo rm -f "$SYSTEMD_SERVICE"
+        sudo systemctl daemon-reload
+        echo -e "${GREEN}✓ Auto-restore disabled${NC}"
+    else
+        echo "Auto-restore was not enabled"
+    fi
+}
+
+# Main logic
+case "$1" in
+    save)
+        save_settings
+        ;;
+    restore)
+        restore_settings
+        ;;
+    status)
+        show_status
+        ;;
+    auto-restore|auto|enable)
+        enable_auto_restore
+        ;;
+    disable-auto|disable)
+        disable_auto_restore
+        ;;
+    *)
+        echo "Predator Settings Manager"
+        echo ""
+        echo "Usage: $0 {save|restore|status|auto-restore|disable-auto}"
+        echo ""
+        echo "Commands:"
+        echo "  save         - Save current settings to file"
+        echo "  restore      - Restore saved settings"
+        echo "  status       - Show current and saved settings"
+        echo "  auto-restore - Enable automatic restore at boot"
+        echo "  disable-auto - Disable automatic restore"
+        echo ""
+        echo "Examples:"
+        echo "  $0 save           # Save current configuration"
+        echo "  $0 restore        # Restore saved configuration"
+        echo "  $0 auto-restore   # Enable auto-restore at boot"
+        echo ""
+        echo "Settings are saved to: $SETTINGS_FILE"
+        exit 1
+        ;;
+esac
