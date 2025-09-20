@@ -46,6 +46,17 @@ sudo make uninstall
 ### Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/zicochaos/Linuwu-Sense-PHN14-51.git
+cd Linuwu-Sense-PHN14-51
+
+# Run the automatic installer (detects your distribution)
+./install-predator-sense.sh
+```
+
+#### Manual Installation
+
+```bash
 # Check kernel version
 uname -r
 
@@ -53,23 +64,26 @@ uname -r
 
 # Ubuntu/Debian/Pop!_OS
 sudo apt update
-sudo apt install build-essential linux-headers-$(uname -r) dkms git
+sudo apt install build-essential linux-headers-$(uname -r) dkms git gcc-12 g++-12
 
-# Fedora
-sudo dnf install kernel-devel kernel-headers gcc make git
+# CachyOS (requires LLVM/Clang)
+sudo pacman -S --noconfirm linux-cachyos-headers base-devel git clang llvm
 
 # Arch Linux/Manjaro
 sudo pacman -S linux-headers base-devel git
 
+# Fedora
+sudo dnf install kernel-devel kernel-headers gcc make git
+
 # openSUSE
 sudo zypper install kernel-devel gcc make git
 
-# Clone and install
-git clone https://github.com/zicochaos/Linuwu-Sense-PHN14-51.git
-cd Linuwu-Sense-PHN14-51
+# Build the module
+make  # For standard kernels
+# OR
+env LLVM=1 make  # For CachyOS/clang-built kernels
 
-# Build and install the kernel module
-make
+# Install
 sudo make install
 ```
 
@@ -77,15 +91,20 @@ sudo make install
 
 ```bash
 # Interactive menu (recommended)
-./predator
+predator
 
 # Quick presets
-./predator gaming    # Gaming mode: Performance + RGB + Custom fans
-./predator silent    # Silent mode: Quiet + Dim keyboard + Auto fans
-./predator extreme   # Maximum everything!
+predator gaming    # Gaming mode: Performance + RGB + Custom fans
+predator silent    # Silent mode: Quiet + Dim keyboard + Auto fans
+predator extreme   # Maximum everything!
 
 # Check status
-./predator status
+predator status
+
+# Settings persistence (NEW!)
+predator save           # Save current settings
+predator restore        # Restore saved settings
+predator auto-restore   # Enable auto-restore at boot
 ```
 
 ## 📱 Interactive Menu
@@ -115,32 +134,65 @@ When running `./predator`:
 
 ### Power Control
 ```bash
-./predator power quiet       # 60W
-./predator power balanced    # 80W
-./predator power performance # 100W
-./predator power turbo       # 125W
+predator power quiet       # 60W GPU limit
+predator power balanced    # 80W GPU limit
+predator power performance # 100W GPU limit
+predator power turbo       # 125W GPU limit (MAXIMUM)
+
+# Or use the direct script
+predator-profile turbo
+predator-profile status    # Check current profile
+```
+
+### 💾 Settings Persistence (NEW!)
+```bash
+# Save your current configuration
+predator save
+
+# Enable automatic restore at boot
+predator auto-restore
+
+# Manually restore saved settings
+predator restore
+
+# Check saved vs current settings
+predator-settings status
 ```
 
 ### RGB Keyboard
 ```bash
-./predator rgb static ff0000      # Red static
-./predator rgb wave               # Wave effect
-./predator rgb profile-cyberpunk  # Cyberpunk theme
-./predator rgb brightness 50      # 50% brightness
-./predator rgb off                # Turn off
+predator rgb static ff0000      # Red static
+predator rgb wave               # Wave effect
+predator rgb profile-cyberpunk  # Cyberpunk theme
+predator rgb brightness 50      # 50% brightness
+predator rgb off                # Turn off
+
+# Or use the direct script
+predator-keyboard wave
+predator-keyboard profile-gaming
+predator-keyboard brightness 75
 ```
 
 ### Fan Control
 ```bash
-./predator fan auto           # Automatic
-./predator fan max            # Maximum speed
-./predator fan custom 60 70   # CPU 60%, GPU 70%
+predator fan auto           # Automatic
+predator fan max            # Maximum speed
+predator fan custom 60 70   # CPU 60%, GPU 70%
+
+# Or use the direct script
+predator-fan auto
+predator-fan max
+predator-fan custom 50 60
 ```
 
 ### Battery Management
 ```bash
-./predator battery enable    # 80% charge limit
-./predator battery disable   # 100% charge
+predator battery enable    # 80% charge limit (protect battery)
+predator battery disable   # 100% charge
+
+# Or use the direct script
+predator-battery enable
+predator-battery status
 ```
 
 ## 🌈 RGB Keyboard Profiles
@@ -177,6 +229,26 @@ echo 3,1,100,0,255,0,0 | sudo tee /sys/devices/platform/acer-wmi/four_zoned_kb/f
 # Per-zone colors: zone1,zone2,zone3,zone4,brightness
 echo ff0000,00ff00,0000ff,ffff00,100 | sudo tee /sys/devices/platform/acer-wmi/four_zoned_kb/per_zone_mode
 ```
+
+## 🔄 Settings Persistence
+
+Your settings now survive reboots! The system automatically saves and restores:
+- Power profile (60W/80W/100W/125W)
+- Fan settings (auto/manual speeds)
+- Battery limiter (80% protection)
+- RGB keyboard configuration
+
+```bash
+# Save current settings
+predator save
+
+# Enable auto-restore at boot (run once)
+predator auto-restore
+
+# Your settings will now persist across reboots!
+```
+
+Settings are stored in `/etc/predator-sense/settings.conf`
 
 ## 📋 All sysfs Features
 
@@ -221,33 +293,65 @@ Inspired by [acer-predator-turbo](https://github.com/JafarAkhondali/acer-predato
 - Other Acer Predator/Nitro models may work (test carefully)
 
 ### Operating Systems
-- **Pop!_OS** 22.04 LTS
-- **Ubuntu** 22.04/24.04 LTS
-- **Debian** 12 (Bookworm)
-- **Arch Linux** (Rolling)
-- **Manjaro** (Latest)
-- **Fedora** 39/40
-- **openSUSE** Tumbleweed
+- **CachyOS** (with kernel 6.16.7+) ✅
+- **Pop!_OS** 22.04 LTS ✅
+- **Ubuntu** 22.04/24.04 LTS ✅
+- **Debian** 12 (Bookworm) ✅
+- **Arch Linux** (Rolling) ✅
+- **Manjaro** (Latest) ✅
+- **Fedora** 39/40 ✅
+- **openSUSE** Tumbleweed ✅
 
 ### Kernel Support
-- Tested: 6.12, 6.13 (including zen)
-- Minimum: 5.15+ (with DKMS)
-- Recommended: 6.0+
+- **Fully tested**: 6.16.7+ (CachyOS), 6.12, 6.13
+- **Compatible**: 5.15+ with appropriate headers
+- **Recommended**: 6.0+ for best compatibility
+- **Special support**: Kernel 6.16+ platform_profile API
 
 ## 🐛 Troubleshooting
 
-1. **Module won't load**: Check `dmesg | grep linuwu` for errors
-2. **No predator_sense directory**: Ensure your laptop model is supported
-3. **Permission denied**: Use `sudo` for sysfs writes
-4. **RGB not working**: Check if you have 4-zone keyboard support
+1. **Module won't load**:
+   - Check `dmesg | grep linuwu` for errors
+   - Ensure acer_wmi is blacklisted: `echo "blacklist acer_wmi" | sudo tee /etc/modprobe.d/blacklist-acer_wmi.conf`
+
+2. **Build fails on CachyOS/Arch**:
+   - Use LLVM: `env LLVM=1 make`
+   - Install clang: `sudo pacman -S clang llvm`
+
+3. **No predator_sense directory**:
+   - Ensure your laptop model is supported
+   - Try: `sudo modprobe linuwu_sense`
+
+4. **Permission denied**:
+   - Use `sudo` for sysfs writes
+   - Or install control scripts: `sudo make install`
+
+5. **RGB not working**:
+   - Check if you have 4-zone keyboard support
+   - Try: `ls /sys/devices/platform/acer-wmi/four_zoned_kb/`
+
+6. **Settings don't persist**:
+   - Run: `predator auto-restore` to enable persistence
+   - Check: `systemctl status predator-restore.service`
 
 ## 📄 Documentation
 
-See [PREDATOR_CONTROL.md](PREDATOR_CONTROL.md) for detailed usage guide.
+- [PREDATOR_CONTROL.md](PREDATOR_CONTROL.md) - Detailed control system guide
+- [README-CACHYOS.md](README-CACHYOS.md) - CachyOS specific instructions
+- [Releases](https://github.com/zicochaos/Linuwu-Sense-PHN14-51/releases) - Download specific versions
 
 ## 📝 Changelog
 
-### Latest Release (v6.13-enhanced)
+### Latest Release (v6.16-compat)
+- **NEW**: Settings persistence across reboots
+- **NEW**: Kernel 6.16+ compatibility (platform_profile API)
+- **NEW**: CachyOS support with LLVM/Clang build
+- **NEW**: Multi-distribution installer
+- **NEW**: Auto-restore settings at boot
+- Enhanced error handling in all scripts
+- Improved documentation
+
+### v6.13-enhanced
 - Added unified Predator Control Center (`predator` command)
 - Implemented 20+ RGB keyboard profiles
 - Added interactive menu with colored output
@@ -269,6 +373,7 @@ Contributions welcome! Please test changes thoroughly before submitting PRs.
 
 ---
 
-*Based on Linuwu-Sense v6.13 with enhanced Predator Control Center*  
-*Developed for Acer Predator Helios Neo 14 (PHN14-51)*  
-*Compatible with Pop!_OS 22.04, Kernel 6.12+*
+*Enhanced Linuwu-Sense with Kernel 6.16+ Support and Settings Persistence*
+*Developed for Acer Predator Helios Neo 14 (PHN14-51)*
+*Compatible with CachyOS, Pop!_OS, Ubuntu, Arch, and other modern Linux distributions*
+*Tested on Kernel 6.16.7 (CachyOS) with full feature support*
