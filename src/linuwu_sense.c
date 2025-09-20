@@ -804,8 +804,10 @@ static const struct dmi_system_id non_acer_quirks[] __initconst = {
 	{}
 };
 
-static struct platform_profile_handler platform_profile_handler;
+/* New kernel 6.16+ platform_profile API */
+static struct platform_profile_ops platform_profile_ops;
 static bool platform_profile_support;
+static struct device *profile_device = NULL;
 
 /*
  * The profile used before turbo mode. This variable is needed for
@@ -1932,8 +1934,38 @@ static int acer_toggle_turbo(void)
 	return turbo_led_state;
 }
 
+/* Forward declarations - remove struct platform_profile_handler for kernel 6.16+ */
+static int acer_predator_v4_platform_profile_get(void *unused,
+				      enum platform_profile_option *profile);
+static int acer_predator_v4_platform_profile_set(void *unused,
+				      enum platform_profile_option profile);
+
+/* Wrapper functions for new kernel 6.16+ API */
+static int acer_predator_v4_profile_get_wrapper(struct device *dev,
+				      enum platform_profile_option *profile)
+{
+	return acer_predator_v4_platform_profile_get(NULL, profile);
+}
+
+static int acer_predator_v4_profile_set_wrapper(struct device *dev,
+				      enum platform_profile_option profile)
+{
+	return acer_predator_v4_platform_profile_set(NULL, profile);
+}
+
+static int acer_predator_v4_profile_probe(void *drvdata,
+				      unsigned long *choices)
+{
+	set_bit(PLATFORM_PROFILE_PERFORMANCE, choices);
+	set_bit(PLATFORM_PROFILE_BALANCED_PERFORMANCE, choices);
+	set_bit(PLATFORM_PROFILE_BALANCED, choices);
+	set_bit(PLATFORM_PROFILE_QUIET, choices);
+	set_bit(PLATFORM_PROFILE_LOW_POWER, choices);
+	return 0;
+}
+
 static int
-acer_predator_v4_platform_profile_get(struct platform_profile_handler *pprof,
+acer_predator_v4_platform_profile_get(void *unused,
 				      enum platform_profile_option *profile)
 {
 	u8 tp;
@@ -1968,7 +2000,7 @@ acer_predator_v4_platform_profile_get(struct platform_profile_handler *pprof,
 }
 
 static int
-acer_predator_v4_platform_profile_set(struct platform_profile_handler *pprof,
+acer_predator_v4_platform_profile_set(void *unused,
 				      enum platform_profile_option profile)
 {
 	int tp;
@@ -2029,30 +2061,24 @@ acer_predator_v4_platform_profile_set(struct platform_profile_handler *pprof,
 	return 0;
 }
 
-static int acer_platform_profile_setup(void)
+static int acer_platform_profile_setup(struct device *dev)
 {
 	if (quirks->predator_v4) {
 		int err;
 
-		platform_profile_handler.profile_get =
-			acer_predator_v4_platform_profile_get;
-		platform_profile_handler.profile_set =
-			acer_predator_v4_platform_profile_set;
+		platform_profile_ops.probe = acer_predator_v4_profile_probe;
+		platform_profile_ops.profile_get = acer_predator_v4_profile_get_wrapper;
+		platform_profile_ops.profile_set = acer_predator_v4_profile_set_wrapper;
 
-		set_bit(PLATFORM_PROFILE_PERFORMANCE,
-			platform_profile_handler.choices);
-		set_bit(PLATFORM_PROFILE_BALANCED_PERFORMANCE,
-			platform_profile_handler.choices);
-		set_bit(PLATFORM_PROFILE_BALANCED,
-			platform_profile_handler.choices);
-		set_bit(PLATFORM_PROFILE_QUIET,
-			platform_profile_handler.choices);
-		set_bit(PLATFORM_PROFILE_LOW_POWER,
-			platform_profile_handler.choices);
-
-		err = platform_profile_register(&platform_profile_handler);
-		if (err)
+		profile_device = platform_profile_register(dev,
+							   "acer-predator",
+							   NULL,
+							   &platform_profile_ops);
+		err = IS_ERR(profile_device) ? PTR_ERR(profile_device) : 0;
+		if (err) {
+			profile_device = NULL;
 			return err;
+		}
 
 		platform_profile_support = true;
 
@@ -2155,7 +2181,8 @@ static int acer_thermal_profile_change(void)
 		if (tp != ACER_PREDATOR_V4_THERMAL_PROFILE_TURBO_WMI)
 			last_non_turbo_profile = tp;
 
-		platform_profile_notify();
+		if (profile_device)
+			platform_profile_notify(profile_device);
 	}
 
 	return 0;
@@ -3901,7 +3928,7 @@ static int acer_platform_probe(struct platform_device *device)
 		goto error_rfkill;
 
 	if (has_cap(ACER_CAP_PLATFORM_PROFILE)) {
-		err = acer_platform_profile_setup();
+		err = acer_platform_profile_setup(&device->dev);
 		if (err)
 			goto error_platform_profile;
 	}
@@ -3936,7 +3963,8 @@ static int acer_platform_probe(struct platform_device *device)
 
 error_hwmon:
 	if (platform_profile_support)
-		platform_profile_remove();
+		if (profile_device)
+			platform_profile_remove(profile_device);
 error_platform_profile:
 	acer_rfkill_exit();
 error_rfkill:
@@ -3974,7 +4002,8 @@ static void acer_platform_remove(struct platform_device *device)
 	acer_rfkill_exit();
 
 	if (platform_profile_support)
-		platform_profile_remove();
+		if (profile_device)
+			platform_profile_remove(profile_device);
 }
 
 #ifdef CONFIG_PM_SLEEP
