@@ -23,3 +23,7 @@ modules.order
 # IDE files
 .vscode/
 .idea/
+
+# Kernel update logs
+kernel-update.log
+kernel-update.log.build
