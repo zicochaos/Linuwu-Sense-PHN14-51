@@ -2,8 +2,14 @@
 
 Unofficial Linux Kernel Module for Acer Gaming Laptops with **Unified Predator Control Center**
 
-**Version**: Based on Linuwu-Sense v6.13 with Enhanced Predator Control Center  
-**Compatibility**: Pop!_OS 22.04, Kernel 6.12+, and other modern Linux distributions
+**Version**: Enhanced v6.16-compat with Kernel 6.16+ support and Settings Persistence
+**Compatibility**: Kernel 6.12+ including 6.16+, CachyOS, Pop!_OS, Ubuntu, Arch, and other modern Linux distributions
+
+## 📌 Branch Information
+
+- **main** (this branch): Enhanced version with Kernel 6.16+ support and all features
+- **upstream-v6.13-original**: Original Linuwu-Sense v6.13 fork (preserved for reference)
+- **Latest Release**: [v6.16-compat](https://github.com/zicochaos/Linuwu-Sense-PHN14-51/releases/tag/v6.16-compat)
 
 ## ✨ Features
 
@@ -13,11 +19,14 @@ Unofficial Linux Kernel Module for Acer Gaming Laptops with **Unified Predator C
 - **🌀 Fan Control** - Auto, custom, and maximum speeds for CPU/GPU
 - **🔋 Battery Management** - 80% charge limiter, calibration support
 - **🎮 Quick Presets** - Gaming, Silent, Work, Extreme, Travel, and more
+- **💾 Settings Persistence** - Save and auto-restore settings across reboots
+- **🐧 Kernel 6.16+ Support** - Full compatibility with latest kernels
 
 ## 📦 What's Included
 
-- ✅ **Linuwu-Sense v6.13** - Full kernel module with all hardware support
+- ✅ **Enhanced Linuwu-Sense Module** - Kernel 6.16+ compatible with all hardware support
 - ✅ **Predator Control Center** - User-friendly unified control system
+- ✅ **Settings Manager** - Save and restore configurations across reboots
 - ✅ **Enhanced Scripts** - Battery, fan, RGB keyboard management
 - ✅ **20+ RGB Profiles** - Gaming and aesthetic keyboard themes
 - ✅ **8 Quick Presets** - One-command system configurations
