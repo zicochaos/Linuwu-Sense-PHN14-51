@@ -22,6 +22,7 @@ Simple, unified control for Acer Predator laptops on Linux.
 ## 🎹 Interactive Menu Controls
 
 When running `./predator`:
+
 - **1-8**: Quick presets (Silent, Work, Gaming, etc.)
 - **0**: Turn keyboard backlight off
 - **+**: Increase keyboard brightness by 20%
@@ -32,26 +33,28 @@ When running `./predator`:
 
 ## 📋 Available Presets
 
-| Preset | Power | Fans | Battery | Keyboard | Brightness | Use Case |
-|--------|-------|------|---------|----------|------------|----------|
-| **Silent** | Quiet (60W) | Auto | 80% limit | White | 20% | Library/night work |
-| **Work** | Balanced (80W) | Auto | 80% limit | Warm white | 70% | Office productivity |
-| **Gaming** | Performance (100W) | 60/70% | 100% | Gaming RGB | 100% | Gaming sessions |
-| **Extreme** | Turbo (125W) | Maximum | 100% | Fire effect | 100% | Benchmarks/rendering |
-| **Travel** | Quiet (60W) | Auto | 100% | Off | 0% | Battery saving |
-| **Movie** | Quiet (60W) | Auto | 80% limit | Ocean | 30% | Media consumption |
-| **Coding** | Balanced (80W) | Auto | 80% limit | F-keys highlight | 60% | Development |
-| **Creative** | Performance (100W) | 50/60% | 80% limit | Rainbow | 100% | Content creation |
+| Preset       | Power              | Fans    | Battery   | Keyboard         | Brightness | Use Case             |
+| ------------ | ------------------ | ------- | --------- | ---------------- | ---------- | -------------------- |
+| **Silent**   | Quiet (60W)        | Auto    | 80% limit | White            | 20%        | Library/night work   |
+| **Work**     | Balanced (80W)     | Auto    | 80% limit | Warm white       | 70%        | Office productivity  |
+| **Gaming**   | Performance (100W) | 60/70%  | 100%      | Gaming RGB       | 100%       | Gaming sessions      |
+| **Extreme**  | Turbo (125W)       | Maximum | 100%      | Fire effect      | 100%       | Benchmarks/rendering |
+| **Travel**   | Quiet (60W)        | Auto    | 100%      | Off              | 0%         | Battery saving       |
+| **Movie**    | Quiet (60W)        | Auto    | 80% limit | Ocean            | 30%        | Media consumption    |
+| **Coding**   | Balanced (80W)     | Auto    | 80% limit | F-keys highlight | 60%        | Development          |
+| **Creative** | Performance (100W) | 50/60%  | 80% limit | Rainbow          | 100%       | Content creation     |
 
 ## 🎨 RGB Keyboard Profiles
 
 ### Gaming Profiles
+
 - `gaming` - Red WASD zone, blue others
 - `fps` - Highlight movement keys
 - `moba` - Highlight QWER abilities
 - `racing` - Arrow keys emphasis
 
 ### Aesthetic Profiles
+
 - `rainbow` - Classic rainbow
 - `fire` - Fire gradient
 - `ocean` - Ocean blues
@@ -74,6 +77,7 @@ When running `./predator`:
 ## 💻 Command Line Usage
 
 ### Direct Control
+
 ```bash
 # Power profiles
 ./predator power quiet|balanced|performance|turbo
@@ -96,7 +100,9 @@ When running `./predator`:
 ```
 
 ### Individual Scripts
+
 The system also includes individual control scripts:
+
 - `predator-profile` - Power profile control
 - `predator-fan` - Fan speed control
 - `predator-keyboard` - RGB keyboard control with brightness
@@ -104,6 +110,7 @@ The system also includes individual control scripts:
 - `predator-preset` - Combined presets
 
 ### Keyboard Brightness Control
+
 ```bash
 # Set specific brightness
 ./predator rgb brightness 75         # 75% brightness
@@ -142,6 +149,7 @@ The system also includes individual control scripts:
 ## 🎯 Tips & Tricks
 
 1. **Quick Access**: Add to PATH or create alias:
+
    ```bash
    alias predator='/path/to/predator'
    alias pgaming='predator gaming'
@@ -149,21 +157,25 @@ The system also includes individual control scripts:
    ```
 
 2. **Startup Preset**: Add to `.bashrc` or `.profile`:
+
    ```bash
    predator work  # Default to work mode
    ```
 
 3. **Gaming Session**: Quick gaming setup:
+
    ```bash
    predator gaming && steam
    ```
 
 4. **Battery Life**: For maximum battery:
+
    ```bash
    predator travel  # Turns off keyboard, quiet mode
    ```
 
 5. **Night Mode**: Reduce eye strain:
+
    ```bash
    predator silent  # 20% keyboard brightness
    # Or manually:
@@ -195,6 +207,7 @@ The system also includes individual control scripts:
 ## 🐛 Troubleshooting
 
 If commands don't work:
+
 1. Check module is loaded: `lsmod | grep linuwu_sense`
 2. Check sysfs exists: `ls /sys/devices/platform/acer-wmi/`
 3. Run with sudo if permission denied
@@ -202,4 +215,4 @@ If commands don't work:
 
 ---
 
-*Created for Acer Predator Helios Neo 14 (PHN14-51) with Linuwu-Sense v6.13*
+_Created for Acer Predator Helios Neo 14 (PHN14-51) with Linuwu-Sense v6.13_

@@ -12,6 +12,13 @@
 #   status      - Show current fan speeds and temperatures
 #   help        - Show this help message
 
+# Determine if we need sudo
+if [ "$EUID" -eq 0 ]; then
+    SUDO_CMD=""
+else
+    SUDO_CMD="sudo"
+fi
+
 SYSFS_PATH="/sys/devices/platform/acer-wmi/predator_sense/fan_speed"
 
 # Check if sysfs interface exists
@@ -46,7 +53,7 @@ get_temps() {
 
 case "$1" in
     auto)
-        echo "0,0" | sudo tee $SYSFS_PATH > /dev/null
+        echo "0,0" | $SUDO_CMD tee $SYSFS_PATH > /dev/null
         if [ $? -eq 0 ]; then
             echo "Fan mode set to AUTO (system controlled)"
             echo "Fans will adjust based on temperature automatically"
@@ -57,7 +64,7 @@ case "$1" in
         ;;
     
     max)
-        echo "100,100" | sudo tee $SYSFS_PATH > /dev/null
+        echo "100,100" | $SUDO_CMD tee $SYSFS_PATH > /dev/null
         if [ $? -eq 0 ]; then
             echo "Fan mode set to MAXIMUM (100% speed)"
             echo "Warning: This will be loud!"
@@ -90,7 +97,7 @@ case "$1" in
             exit 1
         fi
         
-        echo "$CPU_SPEED,$GPU_SPEED" | sudo tee $SYSFS_PATH > /dev/null
+        echo "$CPU_SPEED,$GPU_SPEED" | $SUDO_CMD tee $SYSFS_PATH > /dev/null
         if [ $? -eq 0 ]; then
             echo "Fan speeds set to:"
             echo "  CPU: $CPU_SPEED%"

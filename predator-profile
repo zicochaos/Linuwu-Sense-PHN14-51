@@ -17,6 +17,13 @@
 #   fan-max     - Set fans to maximum speed
 #   fan-custom  - Set custom fan speeds (CPU,GPU)
 
+# Determine if we need sudo
+if [ "$EUID" -eq 0 ]; then
+    SUDO_CMD=""
+else
+    SUDO_CMD="sudo"
+fi
+
 SYSFS_PATH="/sys/devices/platform/acer-wmi/predator_sense/power_profile"
 FAN_PATH="/sys/devices/platform/acer-wmi/predator_sense/fan_speed"
 BATTERY_PATH="/sys/devices/platform/acer-wmi/predator_sense/battery_limiter"
@@ -30,7 +37,7 @@ fi
 
 case "$1" in
     quiet)
-        echo 0 | sudo tee $SYSFS_PATH > /dev/null
+        echo 0 | $SUDO_CMD tee $SYSFS_PATH > /dev/null
         if [ $? -eq 0 ]; then
             echo "Power profile set to QUIET (60W GPU limit)"
         else
@@ -39,7 +46,7 @@ case "$1" in
         fi
         ;;
     balanced)
-        echo 1 | sudo tee $SYSFS_PATH > /dev/null
+        echo 1 | $SUDO_CMD tee $SYSFS_PATH > /dev/null
         if [ $? -eq 0 ]; then
             echo "Power profile set to BALANCED (80W GPU limit)"
         else
@@ -48,7 +55,7 @@ case "$1" in
         fi
         ;;
     performance)
-        echo 2 | sudo tee $SYSFS_PATH > /dev/null
+        echo 2 | $SUDO_CMD tee $SYSFS_PATH > /dev/null
         if [ $? -eq 0 ]; then
             echo "Power profile set to PERFORMANCE (100W GPU limit)"
         else
@@ -57,7 +64,7 @@ case "$1" in
         fi
         ;;
     turbo)
-        echo 3 | sudo tee $SYSFS_PATH > /dev/null
+        echo 3 | $SUDO_CMD tee $SYSFS_PATH > /dev/null
         if [ $? -eq 0 ]; then
             echo "Power profile set to TURBO (125W GPU limit)"
         else
@@ -111,7 +118,7 @@ case "$1" in
         ;;
     fan-auto)
         if [ -f "$FAN_PATH" ]; then
-            echo "0,0" | sudo tee $FAN_PATH > /dev/null
+            echo "0,0" | $SUDO_CMD tee $FAN_PATH > /dev/null
             echo "Fans set to AUTO mode (system controlled)"
         else
             echo "Fan control not available"
@@ -120,7 +127,7 @@ case "$1" in
         ;;
     fan-max)
         if [ -f "$FAN_PATH" ]; then
-            echo "100,100" | sudo tee $FAN_PATH > /dev/null
+            echo "100,100" | $SUDO_CMD tee $FAN_PATH > /dev/null
             echo "Fans set to MAXIMUM speed (100%)"
         else
             echo "Fan control not available"
@@ -136,7 +143,7 @@ case "$1" in
             fi
             CPU=$2
             GPU=$3
-            echo "$CPU,$GPU" | sudo tee $FAN_PATH > /dev/null
+            echo "$CPU,$GPU" | $SUDO_CMD tee $FAN_PATH > /dev/null
             echo "Fans set to: CPU=$CPU%, GPU=$GPU%"
         else
             echo "Fan control not available"
@@ -145,7 +152,7 @@ case "$1" in
         ;;
     battery-enable)
         if [ -f "$BATTERY_PATH" ]; then
-            echo 1 | sudo tee $BATTERY_PATH > /dev/null
+            echo 1 | $SUDO_CMD tee $BATTERY_PATH > /dev/null
             echo "Battery limiter ENABLED (80% charge limit)"
             echo "Recommended for extending battery lifespan"
         else
@@ -155,7 +162,7 @@ case "$1" in
         ;;
     battery-disable)
         if [ -f "$BATTERY_PATH" ]; then
-            echo 0 | sudo tee $BATTERY_PATH > /dev/null
+            echo 0 | $SUDO_CMD tee $BATTERY_PATH > /dev/null
             echo "Battery limiter DISABLED (100% charge)"
         else
             echo "Battery limiter not available"

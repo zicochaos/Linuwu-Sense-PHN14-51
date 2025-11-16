@@ -28,6 +28,8 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
+#include <linux/delay.h>
+#include <linux/string.h>
 #include <acpi/video.h>
 #include <linux/hwmon.h>
 #include <linux/fs.h>
@@ -3468,19 +3470,45 @@ struct get_four_zoned_kb_output {
 	u8 gmOutput[15];
 } __packed;
 
+/* Forward struct declaration */
+struct per_zone_color;
+
+/* Forward declarations */
+static acpi_status get_kb_status(struct get_four_zoned_kb_output *out);
+static acpi_status set_per_zone_color(struct per_zone_color *input);
+
 static acpi_status set_kb_status(int mode, int speed, int brightness,
 								 int direction, int red, int green, int blue){
 	u64 resp = 0;
-	u8 gmInput[16] = {mode, speed, brightness, 0, direction, red, green, blue, 3, 1, 0, 0, 0, 0, 0, 0};
-	
 	acpi_status status;
 	union acpi_object *obj;
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
+	u8 gmInput[16];
+
+	/* Build WMI input parameters */
+	gmInput[0] = mode;
+	gmInput[1] = speed;
+	gmInput[2] = brightness;
+	gmInput[3] = 0;
+	gmInput[4] = direction;
+	gmInput[5] = red;
+	gmInput[6] = green;
+	gmInput[7] = blue;
+	gmInput[8] = 3;
+	gmInput[9] = 1;
+	memset(&gmInput[10], 0, 6);
+
 	struct acpi_buffer input = { (acpi_size)sizeof(gmInput), (void *)(gmInput) };
-	
+
+	/* Log the WMI call for debugging */
+	pr_info("WMI call: mode=%d, speed=%d, brightness=%d, dir=%d, RGB=(%d,%d,%d)\n",
+		mode, speed, brightness, direction, red, green, blue);
+
 	status = wmi_evaluate_method(WMID_GUID4, 0, ACER_WMID_SET_GAMING_KB_BACKLIGHT_METHODID, &input, &output);
-	if (ACPI_FAILURE(status))
+	if (ACPI_FAILURE(status)) {
+		pr_err("WMI call failed with status: %s\n", acpi_format_exception(status));
 		return status;
+	}
 
 	obj = (union acpi_object *) output.pointer;
 
@@ -3496,12 +3524,28 @@ static acpi_status set_kb_status(int mode, int speed, int brightness,
 	}
 
 	if(resp != 0){
-		pr_err("failed to set keyboard rgb: %llu\n",resp);
+		pr_err("Firmware rejected RGB settings: error code %llu (mode=%d)\n", resp, mode);
 		kfree(obj);
 		return AE_ERROR;
 	}
 
 	kfree(obj);
+
+	/* Double-write workaround for mode 0 */
+	if (mode == 0) {
+		pr_info("Applying double-write workaround for STATIC mode\n");
+		msleep(100);
+
+		/* Send the same command again */
+		output.pointer = NULL;
+		output.length = ACPI_ALLOCATE_BUFFER;
+
+		status = wmi_evaluate_method(WMID_GUID4, 0, ACER_WMID_SET_GAMING_KB_BACKLIGHT_METHODID, &input, &output);
+		if (output.pointer) {
+			kfree(output.pointer);
+		}
+	}
+
 	return status;
 }
 
@@ -3630,8 +3674,8 @@ static ssize_t four_zoned_rgb_kb_store(struct device *dev, struct device_attribu
     }
 
     switch (mode) {
-        case 0x0:  // Static mode: Ignore speed and direction
-            speed = 0;
+        case 0x0:  // Static mode: Requires speed=1 in new firmware
+            speed = 1;
             direction = 0;
             break;
         case 0x1:  // Breathing mode: Ignore speed
@@ -3670,6 +3714,13 @@ static ssize_t four_zoned_rgb_kb_store(struct device *dev, struct device_attribu
         pr_err("Error setting RGB KB status.\n");
         return -ENODEV;
     }
+
+	/* WORKAROUND: Write again to force firmware to switch from per-zone to four-zone mode */
+	msleep(100);
+	status = set_kb_status(mode,speed,brightness,direction,red,green,blue);
+	if (ACPI_FAILURE(status)) {
+		pr_warn("Second write failed, continuing anyway\n");
+	}
 
 	/* Set per_zone to 0 */
 	current_kb_state.per_zone = 0;
@@ -3890,12 +3941,157 @@ static int four_zone_kb_state_load(void)
     return 0;
 }
 
+/* EC RGB Test - Experimental sysfs interface for EC register exploration */
+static ssize_t ec_rgb_scan_show(struct device *dev,
+				struct device_attribute *attr, char *buf) {
+	u8 value;
+	int i, len = 0;
+	int rgb_candidates[] = {
+		/* Common RGB-related EC offsets based on other Acer laptops */
+		0x50, 0x51, 0x52, 0x53, /* Potential mode/speed/brightness/direction */
+		0x54, 0x55, 0x56, 0x57, /* Thermal + RGB values */
+		0x58, 0x59, 0x5A, 0x5B, /* Potential zone colors */
+		0x60, 0x61, 0x62, 0x63, /* Alternative RGB registers */
+		0x80, 0x81, 0x82, 0x83, /* Additional candidates */
+		/* Extended B0 range - seems promising */
+		0xAE, 0xAF,
+		0xB0, 0xB1, 0xB2, 0xB3, /* Keyboard backlight control */
+		0xB4, 0xB5, 0xB6, 0xB7,
+		0xB8, 0xB9, 0xBA, 0xBB,
+		0xBC, 0xBD, 0xBE, 0xBF,
+		0xD0, 0xD1, 0xD2, 0xD3, /* Extra candidates */
+		-1 /* Sentinel */
+	};
+
+	len += sprintf(buf + len, "EC RGB Register Scan:\n");
+	len += sprintf(buf + len, "Offset | Value | Binary     | Description\n");
+	len += sprintf(buf + len, "-------|-------|------------|------------\n");
+
+	for (i = 0; rgb_candidates[i] != -1; i++) {
+		if (ec_read(rgb_candidates[i], &value) == 0) {
+			len += sprintf(buf + len, "0x%02X   | 0x%02X  | %c%c%c%c%c%c%c%c | %s\n",
+				rgb_candidates[i], value,
+				(value & 0x80) ? '1' : '0',
+				(value & 0x40) ? '1' : '0',
+				(value & 0x20) ? '1' : '0',
+				(value & 0x10) ? '1' : '0',
+				(value & 0x08) ? '1' : '0',
+				(value & 0x04) ? '1' : '0',
+				(value & 0x02) ? '1' : '0',
+				(value & 0x01) ? '1' : '0',
+				(rgb_candidates[i] == 0x54) ? "Thermal Profile" : "Unknown");
+		}
+	}
+
+	return len;
+}
+
+static ssize_t ec_rgb_test_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count) {
+	unsigned int offset, value;
+	int err;
+	char cmd[10];
+
+	/* Check for WMI test command */
+	if (sscanf(buf, "%9s %x", cmd, &value) == 2) {
+		if (strcmp(cmd, "wmi") == 0) {
+			/* Test alternative WMI method IDs for RGB */
+			acpi_status status;
+			union acpi_object *obj;
+
+			pr_info("Testing alternative WMI RGB method ID %d with mode %d\n",
+				ACER_WMID_SET_GAMING_RGB_KB_METHODID, value);
+
+			/* Try method ID 6 for RGB control - STATIC mode test */
+			u8 gmInput[16] = {value, 1, 100, 0, 0, 255, 0, 0, 3, 1, 0, 0, 0, 0, 0, 0};
+			struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
+			struct acpi_buffer input = { (acpi_size)sizeof(gmInput), (void *)(gmInput) };
+
+			status = wmi_evaluate_method(WMID_GUID4, 0, ACER_WMID_SET_GAMING_RGB_KB_METHODID, &input, &output);
+
+			if (ACPI_SUCCESS(status)) {
+				pr_info("Alternative WMI method succeeded! Checking response...\n");
+
+				obj = (union acpi_object *) output.pointer;
+				if (obj && obj->type == ACPI_TYPE_BUFFER && obj->buffer.length >= 4) {
+					u32 resp = *((u32 *) obj->buffer.pointer);
+					pr_info("Response code: %u\n", resp);
+				}
+
+				kfree(output.pointer);
+			} else {
+				pr_err("Alternative WMI method failed: %s\n", acpi_format_exception(status));
+			}
+
+			return count;
+		} else if (strcmp(cmd, "wmi20") == 0) {
+			/* Test current method ID 20 with different parameters */
+			acpi_status status;
+
+			pr_info("Testing standard WMI method ID 20 with mode %d\n", value);
+
+			/* Try different parameter configurations */
+			u8 gmInput[16] = {value, 1, 100, 0, 0, 255, 0, 0, 3, 1, 0, 0, 0, 0, 0, 0};
+			struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
+			struct acpi_buffer input = { (acpi_size)sizeof(gmInput), (void *)(gmInput) };
+
+			/* First, try a reset sequence */
+			pr_info("Sending reset sequence first...\n");
+			gmInput[0] = 0xFF; /* Try a reset value */
+			status = wmi_evaluate_method(WMID_GUID4, 0, ACER_WMID_SET_GAMING_KB_BACKLIGHT_METHODID, &input, &output);
+			kfree(output.pointer);
+			msleep(50);
+
+			/* Now send the actual mode */
+			gmInput[0] = value;
+			output.pointer = NULL;
+			output.length = ACPI_ALLOCATE_BUFFER;
+			status = wmi_evaluate_method(WMID_GUID4, 0, ACER_WMID_SET_GAMING_KB_BACKLIGHT_METHODID, &input, &output);
+
+			if (ACPI_SUCCESS(status)) {
+				pr_info("Standard WMI method 20 succeeded after reset!\n");
+				kfree(output.pointer);
+			} else {
+				pr_err("Standard WMI method 20 failed: %s\n", acpi_format_exception(status));
+			}
+
+			return count;
+		}
+	}
+
+	/* Normal EC register write */
+	if (sscanf(buf, "%x %x", &offset, &value) != 2) {
+		pr_err("Usage: echo 'offset value' > ec_rgb_test (hex) or echo 'wmi mode' > ec_rgb_test\n");
+		return -EINVAL;
+	}
+
+	if (offset > 0xFF || value > 0xFF) {
+		pr_err("Invalid offset or value (must be 0x00-0xFF)\n");
+		return -EINVAL;
+	}
+
+	pr_info("EC test write: offset=0x%02X value=0x%02X\n", offset, value);
+
+	err = ec_write(offset, value);
+	if (err) {
+		pr_err("EC write failed: %d\n", err);
+		return err;
+	}
+
+	return count;
+}
+
 /* Four Zoned Keyboard Attributes */
 static struct device_attribute four_zoned_rgb_mode = __ATTR(four_zone_mode, 0644, four_zoned_rgb_kb_show, four_zoned_rgb_kb_store);
 static struct device_attribute per_zoned_rgb_mode = __ATTR(per_zone_mode, 0644, per_zoned_rgb_kb_show, per_zoned_rgb_kb_store);
+static struct device_attribute ec_rgb_scan_attr = __ATTR(ec_rgb_scan, 0444, ec_rgb_scan_show, NULL);
+static struct device_attribute ec_rgb_test_attr = __ATTR(ec_rgb_test, 0644, ec_rgb_scan_show, ec_rgb_test_store);
 static struct attribute *four_zoned_kb_attrs[] = {
 	&four_zoned_rgb_mode.attr,
 	&per_zoned_rgb_mode.attr,
+	&ec_rgb_scan_attr.attr,
+	&ec_rgb_test_attr.attr,
 	NULL
 };
 

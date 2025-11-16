@@ -1,0 +1,86 @@
+--- a/src/linuwu_sense.c	2025-01-16 12:00:00.000000000 +0100
++++ b/src/linuwu_sense.c	2025-01-16 12:00:00.000000000 +0100
+@@ -3920,12 +3920,80 @@
+ 	return count;
+ }
+
++/* EC RGB Test - Experimental sysfs interface for EC register exploration */
++static ssize_t ec_rgb_scan_show(struct device *dev,
++				struct device_attribute *attr, char *buf) {
++	u8 value;
++	int i, len = 0;
++	int rgb_candidates[] = {
++		/* Common RGB-related EC offsets based on other Acer laptops */
++		0x50, 0x51, 0x52, 0x53, /* Potential mode/speed/brightness/direction */
++		0x55, 0x56, 0x57, /* Potential RGB values */
++		0x58, 0x59, 0x5A, 0x5B, /* Potential zone colors */
++		0x60, 0x61, 0x62, 0x63, /* Alternative RGB registers */
++		0x80, 0x81, 0x82, /* Additional candidates */
++		0xB0, 0xB1, 0xB2, 0xB3, /* Keyboard backlight control */
++		0xD0, 0xD1, 0xD2, 0xD3, /* Extra candidates */
++		-1 /* Sentinel */
++	};
++
++	len += sprintf(buf + len, "EC RGB Register Scan:\n");
++	len += sprintf(buf + len, "Offset | Value | Binary     | Description\n");
++	len += sprintf(buf + len, "-------|-------|------------|------------\n");
++
++	for (i = 0; rgb_candidates[i] != -1; i++) {
++		if (ec_read(rgb_candidates[i], &value) == 0) {
++			len += sprintf(buf + len, "0x%02X   | 0x%02X  | %c%c%c%c%c%c%c%c | %s\n",
++				rgb_candidates[i], value,
++				(value & 0x80) ? '1' : '0',
++				(value & 0x40) ? '1' : '0',
++				(value & 0x20) ? '1' : '0',
++				(value & 0x10) ? '1' : '0',
++				(value & 0x08) ? '1' : '0',
++				(value & 0x04) ? '1' : '0',
++				(value & 0x02) ? '1' : '0',
++				(value & 0x01) ? '1' : '0',
++				(rgb_candidates[i] == 0x54) ? "Thermal Profile" : "Unknown");
++		}
++	}
++
++	return len;
++}
++
++static ssize_t ec_rgb_test_store(struct device *dev,
++				struct device_attribute *attr,
++				const char *buf, size_t count) {
++	unsigned int offset, value;
++	int err;
++
++	if (sscanf(buf, "%x %x", &offset, &value) != 2) {
++		pr_err("Usage: echo 'offset value' > ec_rgb_test (hex values)\n");
++		return -EINVAL;
++	}
++
++	if (offset > 0xFF || value > 0xFF) {
++		pr_err("Invalid offset or value (must be 0x00-0xFF)\n");
++		return -EINVAL;
++	}
++
++	pr_info("EC test write: offset=0x%02X value=0x%02X\n", offset, value);
++
++	err = ec_write(offset, value);
++	if (err) {
++		pr_err("EC write failed: %d\n", err);
++		return err;
++	}
++
++	return count;
++}
++
+ /* Four Zoned Keyboard Attributes */
+ static struct device_attribute four_zoned_rgb_mode = __ATTR(four_zone_mode, 0644, four_zoned_rgb_kb_show, four_zoned_rgb_kb_store);
+ static struct device_attribute per_zoned_rgb_mode = __ATTR(per_zone_mode, 0644, per_zoned_rgb_kb_show, per_zoned_rgb_kb_store);
++static struct device_attribute ec_rgb_scan_attr = __ATTR(ec_rgb_scan, 0444, ec_rgb_scan_show, NULL);
++static struct device_attribute ec_rgb_test_attr = __ATTR(ec_rgb_test, 0644, ec_rgb_scan_show, ec_rgb_test_store);
+ static struct attribute *four_zoned_kb_attrs[] = {
+ 	&four_zoned_rgb_mode.attr,
+ 	&per_zoned_rgb_mode.attr,
++	&ec_rgb_scan_attr.attr,
++	&ec_rgb_test_attr.attr,
+ 	NULL
+ };
+ static const struct attribute_group four_zoned_kb_group = {

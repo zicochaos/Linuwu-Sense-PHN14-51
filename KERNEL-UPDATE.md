@@ -15,6 +15,7 @@ The `kernel-update.sh` script automatically handles kernel updates by detecting 
 ## Usage
 
 ### Basic Usage
+
 ```bash
 # Run after kernel update
 ./kernel-update.sh
@@ -64,6 +65,7 @@ The `kernel-update.sh` script automatically handles kernel updates by detecting 
 ## Automatic Updates
 
 ### Enable Auto-Updates
+
 The script can set up automatic module updates after kernel upgrades:
 
 ```bash
@@ -73,29 +75,33 @@ The script can set up automatic module updates after kernel upgrades:
 ```
 
 This creates:
+
 - Systemd service for automatic updates
 - Pacman hook (Arch/CachyOS) that triggers on kernel updates
 
 ### Manual Trigger
+
 If auto-update is enabled, you can manually trigger it:
+
 ```bash
 sudo systemctl start linuwu-sense-kernel-update.service
 ```
 
 ### Check Auto-Update Status
+
 ```bash
 systemctl status linuwu-sense-kernel-update.service
 ```
 
 ## Supported Distributions
 
-| Distribution | Headers Package | Compiler |
-|-------------|----------------|----------|
-| CachyOS | linux-cachyos-headers | LLVM/Clang |
-| Ubuntu/Pop!_OS | linux-headers-$(uname -r) | GCC |
-| Arch/Manjaro | linux-headers | GCC |
-| Fedora | kernel-devel-$(uname -r) | GCC |
-| openSUSE | kernel-devel | GCC |
+| Distribution    | Headers Package           | Compiler   |
+| --------------- | ------------------------- | ---------- |
+| CachyOS         | linux-cachyos-headers     | LLVM/Clang |
+| Ubuntu/Pop!\_OS | linux-headers-$(uname -r) | GCC        |
+| Arch/Manjaro    | linux-headers             | GCC        |
+| Fedora          | kernel-devel-$(uname -r)  | GCC        |
+| openSUSE        | kernel-devel              | GCC        |
 
 ## Logs and Backups
 
@@ -106,6 +112,7 @@ systemctl status linuwu-sense-kernel-update.service
 ## Troubleshooting
 
 ### Script Fails to Build Module
+
 ```bash
 # Check build log
 cat kernel-update.log.build
@@ -115,6 +122,7 @@ cat kernel-update.log.build
 ```
 
 ### Module Doesn't Load
+
 ```bash
 # Check kernel messages
 dmesg | tail -20
@@ -124,6 +132,7 @@ sudo insmod src/linuwu_sense.ko
 ```
 
 ### Headers Not Found
+
 ```bash
 # Manually install headers
 # CachyOS
@@ -134,6 +143,7 @@ sudo apt install linux-headers-$(uname -r)
 ```
 
 ### Wrong Compiler Used
+
 ```bash
 # Force LLVM for CachyOS
 LLVM=1 ./kernel-update.sh --force
@@ -145,6 +155,7 @@ CC=gcc ./kernel-update.sh --force
 ## Examples
 
 ### After System Update
+
 ```bash
 # After pacman -Syu or apt upgrade
 ./kernel-update.sh
@@ -169,6 +180,7 @@ Building module...
 ```
 
 ### Regular Check
+
 ```bash
 # Check if module is working
 ./kernel-update.sh
@@ -183,14 +195,17 @@ Building module...
 ## Integration with System
 
 ### Pacman Hook (Arch/CachyOS)
+
 Located at `/etc/pacman.d/hooks/linuwu-sense.hook`
 Triggers automatically after kernel updates
 
 ### Systemd Service
+
 Located at `/etc/systemd/system/linuwu-sense-kernel-update.service`
 Runs the update script when triggered
 
 ### Manual Run
+
 Can always be run manually after kernel updates
 
 ## Safety Features
@@ -203,4 +218,4 @@ Can always be run manually after kernel updates
 
 ---
 
-*This script ensures your Predator Control System continues working seamlessly across kernel updates!*
+_This script ensures your Predator Control System continues working seamlessly across kernel updates!_

@@ -54,27 +54,30 @@ cat /sys/devices/platform/acer-wmi/predator_sense/power_profile
 
 ## Power Profiles
 
-| Profile | GPU Power Limit | Use Case |
-|---------|----------------|----------|
-| Quiet (0) | 80W | Battery saving, light tasks |
-| Balanced (1) | 100W | General use, moderate gaming |
-| Performance (2) | 125W | Maximum performance, heavy gaming |
+| Profile         | GPU Power Limit | Use Case                          |
+| --------------- | --------------- | --------------------------------- |
+| Quiet (0)       | 80W             | Battery saving, light tasks       |
+| Balanced (1)    | 100W            | General use, moderate gaming      |
+| Performance (2) | 125W            | Maximum performance, heavy gaming |
 
 ## Other Predator Sense Features
 
 ### Fan Control
+
 ```bash
 # Set fan speeds (CPU,GPU in percentage)
 echo "50,70" | sudo tee /sys/devices/platform/acer-wmi/predator_sense/fan_speed
 ```
 
 ### Battery Limiter
+
 ```bash
 # Enable battery charge limiter (80% max)
 echo 1 | sudo tee /sys/devices/platform/acer-wmi/predator_sense/battery_limiter
 ```
 
 ### LCD Overdrive
+
 ```bash
 # Enable LCD overdrive
 echo 1 | sudo tee /sys/devices/platform/acer-wmi/predator_sense/lcd_override
@@ -97,6 +100,7 @@ sudo make install
 ## Troubleshooting
 
 ### Module not loading
+
 ```bash
 # Check if module is loaded
 lsmod | grep linuwu_sense
@@ -109,6 +113,7 @@ sudo modprobe linuwu_sense
 ```
 
 ### Power profile not working
+
 ```bash
 # Verify sysfs interface exists
 ls /sys/devices/platform/acer-wmi/predator_sense/
@@ -122,7 +127,7 @@ sudo dmesg | grep -i wmi
 - Acer Predator PHN14-51 laptop
 - Linux kernel 5.15 or newer
 - NVIDIA GPU with proprietary drivers
-- Pop!_OS 22.04 or compatible distribution
+- Pop!\_OS 22.04 or compatible distribution
 
 ## Credits
 

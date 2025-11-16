@@ -17,10 +17,16 @@ NC='\033[0m' # No Color
 
 # Script paths
 SCRIPT_DIR="$(dirname $0)"
-PROFILE_SCRIPT="$SCRIPT_DIR/predator-profile"
-FAN_SCRIPT="$SCRIPT_DIR/predator-fan"
-BATTERY_SCRIPT="$SCRIPT_DIR/predator-battery"
-KEYBOARD_SCRIPT="$SCRIPT_DIR/predator-keyboard"
+# Use sudo only if not already root
+if [ "$EUID" -eq 0 ]; then
+    SUDO=""
+else
+    SUDO="sudo"
+fi
+PROFILE_SCRIPT="$SUDO $SCRIPT_DIR/predator-profile"
+FAN_SCRIPT="$SUDO $SCRIPT_DIR/predator-fan"
+BATTERY_SCRIPT="$SUDO $SCRIPT_DIR/predator-battery"
+KEYBOARD_SCRIPT="$SUDO $SCRIPT_DIR/predator-keyboard"
 
 # Display banner
 show_banner() {
@@ -210,7 +216,9 @@ advanced_menu() {
     echo ""
     echo -n "Select option: "
     read choice
-    
+    # Trim whitespace from input
+    choice=$(echo "$choice" | tr -d ' \t\n\r')
+
     case $choice in
         p1) $PROFILE_SCRIPT quiet && echo -e "${GREEN}✓ Set to Quiet mode${NC}" ;;
         p2) $PROFILE_SCRIPT balanced && echo -e "${GREEN}✓ Set to Balanced mode${NC}" ;;
@@ -218,19 +226,22 @@ advanced_menu() {
         p4) $PROFILE_SCRIPT turbo && echo -e "${GREEN}✓ Set to Turbo mode${NC}" ;;
         fa) $FAN_SCRIPT auto && echo -e "${GREEN}✓ Fans set to Auto${NC}" ;;
         fm) $FAN_SCRIPT max && echo -e "${GREEN}✓ Fans set to Maximum${NC}" ;;
-        fc) 
+        fc)
             echo -n "CPU fan speed (0-100): "
             read cpu
+            cpu=$(echo "$cpu" | tr -d ' \t\n\r')
             echo -n "GPU fan speed (0-100): "
             read gpu
+            gpu=$(echo "$gpu" | tr -d ' \t\n\r')
             $FAN_SCRIPT custom $cpu $gpu && echo -e "${GREEN}✓ Custom fan speeds set${NC}"
             ;;
         k1) rgb_effects_menu ;;
         k2) rgb_profiles_menu ;;
         k3) rgb_custom_menu ;;
-        kb) 
+        kb)
             echo -n "Enter brightness (0-100): "
             read brightness
+            brightness=$(echo "$brightness" | tr -d ' \t\n\r')
             if [ "$brightness" -ge 0 ] && [ "$brightness" -le 100 ] 2>/dev/null; then
                 $KEYBOARD_SCRIPT brightness $brightness && echo -e "${GREEN}✓ Brightness set to $brightness%${NC}"
             else
@@ -321,7 +332,9 @@ rgb_profiles_menu() {
     echo ""
     echo -n "Select profile: "
     read profile
-    
+    # Trim whitespace from input
+    profile=$(echo "$profile" | tr -d ' \t\n\r')
+
     case $profile in
         1) $KEYBOARD_SCRIPT profile-gaming ;;
         2) $KEYBOARD_SCRIPT profile-fps ;;
@@ -360,17 +373,17 @@ rgb_custom_menu() {
     echo ""
     echo -n "Zone 1 color: "
     read z1
-    z1=${z1:-ffffff}
+    z1=$(echo "${z1:-ffffff}" | tr -d ' \t\n\r')
     echo -n "Zone 2 color: "
     read z2
-    z2=${z2:-ffffff}
+    z2=$(echo "${z2:-ffffff}" | tr -d ' \t\n\r')
     echo -n "Zone 3 color: "
     read z3
-    z3=${z3:-ffffff}
+    z3=$(echo "${z3:-ffffff}" | tr -d ' \t\n\r')
     echo -n "Zone 4 color: "
     read z4
-    z4=${z4:-ffffff}
-    
+    z4=$(echo "${z4:-ffffff}" | tr -d ' \t\n\r')
+
     $KEYBOARD_SCRIPT zone $z1 $z2 $z3 $z4
     echo -e "${GREEN}✓ Custom colors applied${NC}"
 }

@@ -8,6 +8,13 @@
 FOUR_ZONE_PATH="/sys/devices/platform/acer-wmi/four_zoned_kb/four_zone_mode"
 PER_ZONE_PATH="/sys/devices/platform/acer-wmi/four_zoned_kb/per_zone_mode"
 
+# Determine if we need sudo
+if [ "$EUID" -eq 0 ]; then
+    SUDO_CMD=""
+else
+    SUDO_CMD="sudo"
+fi
+
 # Check if sysfs interfaces exist
 if [ ! -f "$FOUR_ZONE_PATH" ] || [ ! -f "$PER_ZONE_PATH" ]; then
     echo "Error: Keyboard RGB interfaces not found!"
@@ -16,7 +23,8 @@ if [ ! -f "$FOUR_ZONE_PATH" ] || [ ! -f "$PER_ZONE_PATH" ]; then
 fi
 
 # RGB Modes
-MODE_STATIC=0
+# NOTE: MODE_STATIC (0) is broken - using BREATHE as workaround
+MODE_STATIC=1  # Using BREATHE mode as static workaround
 MODE_BREATHE=1
 MODE_NEON=2
 MODE_WAVE=3
@@ -115,8 +123,8 @@ set_mode() {
     local red=${5:-255}  # Default white
     local green=${6:-255}
     local blue=${7:-255}
-    
-    echo "$mode,$speed,$brightness,$direction,$red,$green,$blue" | sudo tee $FOUR_ZONE_PATH > /dev/null
+
+    echo "$mode,$speed,$brightness,$direction,$red,$green,$blue" | $SUDO_CMD tee $FOUR_ZONE_PATH > /dev/null
     if [ $? -eq 0 ]; then
         return 0
     else
@@ -132,13 +140,18 @@ set_zones() {
     local zone3=$3
     local zone4=$4
     local brightness=${5:-100}
-    
-    echo "$zone1,$zone2,$zone3,$zone4,$brightness" | sudo tee $PER_ZONE_PATH > /dev/null
-    if [ $? -eq 0 ]; then
-        return 0
+
+    # Check if all zones have the same color
+    if [ "$zone1" = "$zone2" ] && [ "$zone2" = "$zone3" ] && [ "$zone3" = "$zone4" ]; then
+        # All zones same color - use four_zone_mode with STATIC mode
+        local rgb=$(hex_to_rgb "$zone1")
+        set_mode $MODE_STATIC 0 $brightness 0 ${rgb//,/ }
     else
-        echo "Failed to set zone colors"
-        return 1
+        # Different colors per zone
+        # Note: per_zone_mode is broken in current firmware, use zone 1 color for all zones
+        echo "Warning: Per-zone colors not fully supported (using zone 1 color for all zones)"
+        local rgb=$(hex_to_rgb "$zone1")
+        set_mode $MODE_STATIC 0 $brightness 0 ${rgb//,/ }
     fi
 }
 
@@ -174,8 +187,10 @@ case "$1" in
     breathe)
         SPEED=${2:-1}  # Default medium
         if [ $# -ge 3 ]; then
-            if [[ "$3" =~ ^#[0-9A-Fa-f]{6}$ ]]; then
-                IFS=',' read -r r g b <<< $(hex_to_rgb "$3")
+            COLOR="${3#\#}"  # Remove # if present
+            if [[ "$COLOR" =~ ^[0-9A-Fa-f]{6}$ ]]; then
+                RGB=$(hex_to_rgb "$COLOR")
+                IFS=',' read -r r g b <<< "$RGB"
             else
                 r=$3; g=${4:-255}; b=${5:-255}
             fi

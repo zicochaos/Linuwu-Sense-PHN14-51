@@ -5,6 +5,13 @@
 #
 # Usage: predator-battery {enable|disable|calibrate|status|help}
 
+# Determine if we need sudo
+if [ "$EUID" -eq 0 ]; then
+    SUDO_CMD=""
+else
+    SUDO_CMD="sudo"
+fi
+
 LIMITER_PATH="/sys/devices/platform/acer-wmi/predator_sense/battery_limiter"
 CALIBRATION_PATH="/sys/devices/platform/acer-wmi/predator_sense/battery_calibration"
 
@@ -35,7 +42,7 @@ get_battery_info() {
 
 case "$1" in
     enable)
-        echo 1 | sudo tee $LIMITER_PATH > /dev/null
+        echo 1 | $SUDO_CMD tee $LIMITER_PATH > /dev/null
         if [ $? -eq 0 ]; then
             echo "Battery limiter ENABLED"
             echo "Battery will charge to ~80% to extend lifespan"
@@ -51,7 +58,7 @@ case "$1" in
         ;;
     
     disable)
-        echo 0 | sudo tee $LIMITER_PATH > /dev/null
+        echo 0 | $SUDO_CMD tee $LIMITER_PATH > /dev/null
         if [ $? -eq 0 ]; then
             echo "Battery limiter DISABLED"
             echo "Battery will charge to 100%"
@@ -90,9 +97,9 @@ case "$1" in
         
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             # Disable limiter first
-            echo 0 | sudo tee $LIMITER_PATH > /dev/null
+            echo 0 | $SUDO_CMD tee $LIMITER_PATH > /dev/null
             # Start calibration
-            echo 1 | sudo tee $CALIBRATION_PATH > /dev/null
+            echo 1 | $SUDO_CMD tee $CALIBRATION_PATH > /dev/null
             if [ $? -eq 0 ]; then
                 echo "Battery calibration STARTED"
                 echo "The battery will discharge and then fully recharge."
@@ -107,7 +114,7 @@ case "$1" in
         ;;
     
     calibrate-stop)
-        echo 0 | sudo tee $CALIBRATION_PATH > /dev/null
+        echo 0 | $SUDO_CMD tee $CALIBRATION_PATH > /dev/null
         if [ $? -eq 0 ]; then
             echo "Battery calibration STOPPED"
         else
