@@ -27,3 +27,6 @@ modules.order
 # Kernel update logs
 kernel-update.log
 kernel-update.log.build
+
+# Private system information (contains serial numbers)
+SYSTEM_INFO.md

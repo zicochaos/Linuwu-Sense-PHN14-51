@@ -9,8 +9,7 @@ After kernel updates to 6.17+ and/or BIOS/EC firmware updates, the RGB keyboard 
 - **Laptop**: Acer Predator Helios Neo 14 (PHN14-51)
 - **Keyboard**: 4-zone RGB keyboard
 - **Kernel**: 6.17.1-2-cachyos through 6.17.7-5-cachyos
-- **BIOS Version**: 1.08 (Latest available as of 2025-01-16)
-- **SNID**: 4380367C
+- **BIOS Version**: 1.08 (Latest available as of 2025-11-16)
 
 ## Technical Details
 
@@ -185,12 +184,12 @@ sudo ./predator-keyboard zone ff0000 00ff00 0000ff ffff00  # Per-zone colors
 
 ### Long Term
 1. **Wait for Acer firmware update** - Only they can fix the EC firmware
-   - Current latest BIOS v1.08 still has the issue (checked 2025-01-16)
+   - Current latest BIOS v1.08 still has the issue (checked 2025-11-16)
    - Check periodically at: https://www.acer.com/support/ (search PHN14-51)
 2. **Monitor kernel updates** - Future kernels might work around the issue
 3. **Report issue to Acer** - More reports might prioritize a fix
    - Reference: RGB STATIC mode broken on Linux kernel 6.17+
-   - Model: PHN14-51, SNID: 4380367C
+   - Model: PHN14-51
 
 ## Debugging Commands
 
@@ -237,7 +236,7 @@ Tested implementation from: https://github.com/JafarAkhondali/acer-predator-turb
 
 **Result**: ❌ **Keyboard turns off completely** (same as other static mode attempts)
 
-## EXPERIMENTAL FIX ATTEMPT (2025-01-16 Update - FAILED)
+## EXPERIMENTAL FIX ATTEMPT (2025-11-16 Update - FAILED)
 
 ### Discovery of Alternative Solutions
 
@@ -307,7 +306,7 @@ STATIC mode (mode 0) is **permanently broken** at the EC firmware level and cann
 
 ---
 
-*Last Updated*: 2025-01-16
+*Last Updated*: 2025-11-16
 *Solution Tested*: Working reliably with BREATHE mode workaround
 *Kernel Version*: 6.17.7-5-cachyos
 *Module Version*: linuwu_sense (custom build)
