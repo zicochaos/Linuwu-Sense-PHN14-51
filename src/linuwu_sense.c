@@ -3485,7 +3485,17 @@ static acpi_status set_kb_status(int mode, int speed, int brightness,
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
 	u8 gmInput[16];
 
-	/* Build WMI input parameters */
+	/* STATIC mode (0) is broken on kernel 6.17+ - keyboard turns off
+	 * This is the same issue affecting per_zone_mode
+	 * No known workaround exists that actually works
+	 */
+	if (mode == 0) {
+		pr_warn("STATIC mode is broken on kernel 6.17+ - keyboard may turn off!\n");
+		pr_warn("Consider using BREATHE mode (1) as a workaround\n");
+		/* Continue with standard method anyway, but it won't work properly */
+	}
+
+	/* Standard WMI call for non-static modes */
 	gmInput[0] = mode;
 	gmInput[1] = speed;
 	gmInput[2] = brightness;
@@ -3530,22 +3540,6 @@ static acpi_status set_kb_status(int mode, int speed, int brightness,
 	}
 
 	kfree(obj);
-
-	/* Double-write workaround for mode 0 */
-	if (mode == 0) {
-		pr_info("Applying double-write workaround for STATIC mode\n");
-		msleep(100);
-
-		/* Send the same command again */
-		output.pointer = NULL;
-		output.length = ACPI_ALLOCATE_BUFFER;
-
-		status = wmi_evaluate_method(WMID_GUID4, 0, ACER_WMID_SET_GAMING_KB_BACKLIGHT_METHODID, &input, &output);
-		if (output.pointer) {
-			kfree(output.pointer);
-		}
-	}
-
 	return status;
 }
 

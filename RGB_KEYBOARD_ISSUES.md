@@ -220,6 +220,17 @@ echo "MODE,SPEED,BRIGHT,DIR,R,G,B" | sudo tee /sys/.../four_zone_mode
 - **Line 190-192**: Fixed hex color parsing for breathe command
 - **Result**: "static" commands work reliably by using breathing mode
 
+## TESTED ALTERNATIVE IMPLEMENTATIONS (All Failed)
+
+### JafarAkhondali Repository Method (FAILED)
+Tested implementation from: https://github.com/JafarAkhondali/acer-predator-turbo-and-rgb-keyboard-linux-module
+
+**Approach**: Use separate WMI method ID 6 for RGB colors + method ID 20 for mode
+- Method ID 6 sends 4-byte struct: zone_mask + RGB
+- Method ID 20 sends mode 0 with brightness
+
+**Result**: ❌ **Keyboard turns off completely** (same as other static mode attempts)
+
 ## EXPERIMENTAL FIX ATTEMPT (2025-01-16 Update - FAILED)
 
 ### Discovery of Alternative Solutions
@@ -257,6 +268,13 @@ The kernel module attempted a multi-step workaround:
 ./predator-keyboard breathe 0 00ff00  # Green breathing
 ```
 
+## Other Affected Users
+
+This issue has been confirmed by multiple Acer Predator users on kernel 6.17+:
+- **Predator Helios Neo 16** - per_zone_mode causes keyboard to turn off
+- **Predator Helios Neo 14 (PHN14-51)** - STATIC mode shows breathing or turns off
+- Common pattern: Any attempt at static/per-zone colors results in keyboard turning off
+
 ## Conclusion
 
 STATIC mode (mode 0) is **permanently broken** at the EC firmware level and cannot be fixed via kernel driver modifications. Multiple approaches were tested:
@@ -267,6 +285,8 @@ STATIC mode (mode 0) is **permanently broken** at the EC firmware level and cann
 4. ✗ Reset sequences (0xFF) - **Turns keyboard off completely**
 5. ✗ Alternative WMI methods - Succeed but don't fix the visual issue
 6. ✗ EC register manipulation - Changes detected but don't affect display
+7. ✗ JafarAkhondali method (WMI ID 6 + 20) - **Keyboard turns off**
+8. ✗ per_zone_mode - **Same issue, keyboard turns off**
 
 ### Final Solution
 **BREATHE mode (mode 1) is the permanent workaround**. The `predator-keyboard` script has been configured to use BREATHE mode when "static" is requested. This provides:

@@ -23,8 +23,8 @@ if [ ! -f "$FOUR_ZONE_PATH" ] || [ ! -f "$PER_ZONE_PATH" ]; then
 fi
 
 # RGB Modes
-# NOTE: MODE_STATIC (0) is broken - using BREATHE as workaround
-MODE_STATIC=1  # Using BREATHE mode as static workaround
+# NOTE: MODE_STATIC (0) is broken - keyboard turns off! Using BREATHE as workaround
+MODE_STATIC=1  # Using BREATHE mode as only working solution
 MODE_BREATHE=1
 MODE_NEON=2
 MODE_WAVE=3
