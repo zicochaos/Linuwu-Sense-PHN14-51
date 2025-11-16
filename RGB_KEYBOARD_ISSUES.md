@@ -9,6 +9,8 @@ After kernel updates to 6.17+ and/or BIOS/EC firmware updates, the RGB keyboard 
 - **Laptop**: Acer Predator Helios Neo 14 (PHN14-51)
 - **Keyboard**: 4-zone RGB keyboard
 - **Kernel**: 6.17.1-2-cachyos through 6.17.7-5-cachyos
+- **BIOS Version**: 1.08 (Latest available as of 2025-01-16)
+- **SNID**: 4380367C
 
 ## Technical Details
 
@@ -183,8 +185,12 @@ sudo ./predator-keyboard zone ff0000 00ff00 0000ff ffff00  # Per-zone colors
 
 ### Long Term
 1. **Wait for Acer firmware update** - Only they can fix the EC firmware
+   - Current latest BIOS v1.08 still has the issue (checked 2025-01-16)
+   - Check periodically at: https://www.acer.com/support/ (search PHN14-51)
 2. **Monitor kernel updates** - Future kernels might work around the issue
-3. **Don't update BIOS** unless necessary - May change RGB behavior again
+3. **Report issue to Acer** - More reports might prioritize a fix
+   - Reference: RGB STATIC mode broken on Linux kernel 6.17+
+   - Model: PHN14-51, SNID: 4380367C
 
 ## Debugging Commands
 
