@@ -5,26 +5,27 @@
 #
 # Usage: predator-preset {silent|normal|gaming|extreme|custom}
 
-PROFILE_SCRIPT="/home/sbochna/Projects/Linuwu-Sense-PHN14-51/predator-profile"
-FAN_SCRIPT="/home/sbochna/Projects/Linuwu-Sense-PHN14-51/predator-fan"
-BATTERY_SCRIPT="/home/sbochna/Projects/Linuwu-Sense-PHN14-51/predator-battery"
-KEYBOARD_SCRIPT="/home/sbochna/Projects/Linuwu-Sense-PHN14-51/predator-keyboard"
+SCRIPT_DIR="$(dirname $0)"
+PROFILE_SCRIPT="$SCRIPT_DIR/predator-profile"
+FAN_SCRIPT="$SCRIPT_DIR/predator-fan"
+BATTERY_SCRIPT="$SCRIPT_DIR/predator-battery"
+KEYBOARD_SCRIPT="$SCRIPT_DIR/predator-keyboard"
 
-# Make sure scripts exist
+# Fallback to system paths if local scripts not found
 if [ ! -x "$PROFILE_SCRIPT" ]; then
-    PROFILE_SCRIPT="$(dirname $0)/predator-profile"
+    PROFILE_SCRIPT="/usr/local/bin/predator-profile"
 fi
 
 if [ ! -x "$FAN_SCRIPT" ]; then
-    FAN_SCRIPT="$(dirname $0)/predator-fan"
+    FAN_SCRIPT="/usr/local/bin/predator-fan"
 fi
 
 if [ ! -x "$BATTERY_SCRIPT" ]; then
-    BATTERY_SCRIPT="$(dirname $0)/predator-battery"
+    BATTERY_SCRIPT="/usr/local/bin/predator-battery"
 fi
 
 if [ ! -x "$KEYBOARD_SCRIPT" ]; then
-    KEYBOARD_SCRIPT="$(dirname $0)/predator-keyboard"
+    KEYBOARD_SCRIPT="/usr/local/bin/predator-keyboard"
 fi
 
 case "$1" in

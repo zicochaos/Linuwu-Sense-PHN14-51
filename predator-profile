@@ -171,9 +171,9 @@ case "$1" in
         ;;
     kb-*)
         # Pass keyboard commands to predator-keyboard script
-        KB_SCRIPT="/home/sbochna/Projects/Linuwu-Sense-PHN14-51/predator-keyboard"
+        KB_SCRIPT="$(dirname $0)/predator-keyboard"
         if [ ! -x "$KB_SCRIPT" ]; then
-            KB_SCRIPT="$(dirname $0)/predator-keyboard"
+            KB_SCRIPT="/usr/local/bin/predator-keyboard"
         fi
         
         if [ ! -x "$KB_SCRIPT" ]; then
