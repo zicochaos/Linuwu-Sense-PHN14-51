@@ -27,6 +27,9 @@ modules.order
 # Claude Code settings
 .claude/
 
+# GUI planning docs (local only)
+gui/GUI_PLANNING.md
+
 # Kernel update logs
 kernel-update.log
 kernel-update.log.build
