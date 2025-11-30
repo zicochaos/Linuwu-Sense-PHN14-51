@@ -88,6 +88,12 @@ MODULE_LICENSE("GPL");
 
 #define ACER_PREDATOR_V4_FAN_SPEED_READ_BIT_MASK GENMASK(20, 8)
 
+/* PHN14-51 EC (Embedded Controller) offsets for direct fan reading */
+#define ACER_PHN14_EC_FAN_CPU_LSB	0x13
+#define ACER_PHN14_EC_FAN_CPU_MSB	0x14
+#define ACER_PHN14_EC_FAN_GPU_LSB	0x15
+#define ACER_PHN14_EC_FAN_GPU_MSB	0x16
+
 /*
  * Acer ACPI method GUIDs
  */
@@ -374,6 +380,7 @@ struct quirk_entry {
 	u8 predator_v4;
 	u8 nitro_sense;
 	u8 four_zone_kb;
+	u8 phn14_sensors;  /* PHN14-51 uses EC for fan RPM reading */
 };
 
 static struct quirk_entry *quirks;
@@ -438,6 +445,7 @@ static struct quirk_entry quirk_acer_predator_phn16_71 = {
 static struct quirk_entry quirk_acer_predator_phn14_51 = {
 	.predator_v4 = 1,
 	.four_zone_kb = 1,
+	.phn14_sensors = 1,  /* Enable EC-based fan RPM reading */
 };
 
 static struct quirk_entry quirk_acer_nitro = {
@@ -1882,7 +1890,43 @@ static int acer_gsensor_event(void)
 /* Fan Speed */
 static acpi_status acer_set_fan_speed(int t_cpu_fan_speed, int t_gpu_fan_speed);
 
+/*
+ * PHN14-51 EC-based fan RPM reading
+ * This model requires direct EC access as WMI returns 0
+ */
+static int acer_phn14_read_ec_fan(int channel)
+{
+	u8 lsb, msb;
+	u8 lsb_offset, msb_offset;
+	int ret;
+
+	/* Determine EC offsets based on channel (0=CPU, 1=GPU) */
+	if (channel == 0) {
+		lsb_offset = ACER_PHN14_EC_FAN_CPU_LSB;
+		msb_offset = ACER_PHN14_EC_FAN_CPU_MSB;
+	} else {
+		lsb_offset = ACER_PHN14_EC_FAN_GPU_LSB;
+		msb_offset = ACER_PHN14_EC_FAN_GPU_MSB;
+	}
+
+	/* Read EC bytes */
+	ret = ec_read(lsb_offset, &lsb);
+	if (ret < 0)
+		return ret;
+
+	ret = ec_read(msb_offset, &msb);
+	if (ret < 0)
+		return ret;
+
+	/* Combine as little-endian 16-bit RPM value */
+	return (int)(lsb | (msb << 8));
+}
+
 static int acer_get_fan_speed(int fan) {
+	/* PHN14-51 uses EC direct reading as WMI returns 0 */
+	if (quirks->phn14_sensors)
+		return acer_phn14_read_ec_fan(fan);
+
 	if (quirks->predator_v4 || quirks->nitro_sense) {
 		acpi_status status;
 		u64 fanspeed;
