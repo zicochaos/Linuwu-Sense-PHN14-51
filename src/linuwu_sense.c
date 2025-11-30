@@ -4019,6 +4019,96 @@ static ssize_t ec_rgb_test_store(struct device *dev,
 			}
 
 			return count;
+		} else if (strcmp(cmd, "static4") == 0) {
+			/* Test JafarAkhondali's exact 4-byte static approach */
+			acpi_status status;
+			union acpi_object *obj;
+
+			/* Parse additional RGB values from the command */
+			int r = 0, g = 255, b = 0;  /* Default green */
+			sscanf(buf, "%*s %*x %d %d %d", &r, &g, &b);
+
+			pr_info("Testing 4-byte static LED method: zone=0x%02X RGB=(%d,%d,%d)\n",
+				value, r, g, b);
+
+			/* JafarAkhondali's exact 4-byte payload structure */
+			u8 static_payload[4] = {
+				(u8)value,  /* zone: 0x01=zone1, 0x02=zone2, 0x04=zone3, 0x08=zone4, 0x0F=all */
+				(u8)r,      /* red */
+				(u8)g,      /* green */
+				(u8)b       /* blue */
+			};
+
+			struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
+			struct acpi_buffer input = { (acpi_size)sizeof(static_payload), (void *)(static_payload) };
+
+			status = wmi_evaluate_method(WMID_GUID4, 0, ACER_WMID_SET_GAMING_RGB_KB_METHODID, &input, &output);
+
+			if (ACPI_SUCCESS(status)) {
+				pr_info("4-byte static method succeeded!\n");
+
+				obj = (union acpi_object *) output.pointer;
+				if (obj) {
+					if (obj->type == ACPI_TYPE_BUFFER && obj->buffer.length >= 4) {
+						u32 resp = *((u32 *) obj->buffer.pointer);
+						pr_info("Response code: %u (0=success)\n", resp);
+					} else if (obj->type == ACPI_TYPE_INTEGER) {
+						pr_info("Response integer: %llu\n", obj->integer.value);
+					}
+				}
+
+				kfree(output.pointer);
+			} else {
+				pr_err("4-byte static method failed: %s\n", acpi_format_exception(status));
+			}
+
+			return count;
+		} else if (strcmp(cmd, "combo") == 0) {
+			/* Test combined approach: method 20 for mode, method 6 for color */
+			acpi_status status;
+			union acpi_object *obj;
+
+			/* Parse RGB values */
+			int r = 0, g = 255, b = 0;  /* Default green */
+			sscanf(buf, "%*s %*x %d %d %d", &r, &g, &b);
+
+			pr_info("Testing combo approach: mode via method 20, color via method 6\n");
+			pr_info("Target RGB: (%d,%d,%d)\n", r, g, b);
+
+			/* Step 1: Set mode 0 (static) via method 20 with brightness */
+			u8 mode_payload[16] = {0, 0, 100, 0, 0, (u8)r, (u8)g, (u8)b, 3, 1, 0, 0, 0, 0, 0, 0};
+			struct acpi_buffer output1 = { ACPI_ALLOCATE_BUFFER, NULL };
+			struct acpi_buffer input1 = { (acpi_size)sizeof(mode_payload), (void *)(mode_payload) };
+
+			status = wmi_evaluate_method(WMID_GUID4, 0, ACER_WMID_SET_GAMING_KB_BACKLIGHT_METHODID, &input1, &output1);
+			if (ACPI_SUCCESS(status)) {
+				pr_info("Step 1 (mode 0 via method 20): SUCCESS\n");
+			} else {
+				pr_err("Step 1 failed: %s\n", acpi_format_exception(status));
+			}
+			kfree(output1.pointer);
+
+			msleep(100);
+
+			/* Step 2: Set color via method 6 with 4-byte payload */
+			u8 color_payload[4] = {0x0F, (u8)r, (u8)g, (u8)b};  /* 0x0F = all zones */
+			struct acpi_buffer output2 = { ACPI_ALLOCATE_BUFFER, NULL };
+			struct acpi_buffer input2 = { (acpi_size)sizeof(color_payload), (void *)(color_payload) };
+
+			status = wmi_evaluate_method(WMID_GUID4, 0, ACER_WMID_SET_GAMING_RGB_KB_METHODID, &input2, &output2);
+			if (ACPI_SUCCESS(status)) {
+				pr_info("Step 2 (color via method 6): SUCCESS\n");
+				obj = (union acpi_object *) output2.pointer;
+				if (obj && obj->type == ACPI_TYPE_BUFFER && obj->buffer.length >= 4) {
+					u32 resp = *((u32 *) obj->buffer.pointer);
+					pr_info("Response code: %u\n", resp);
+				}
+			} else {
+				pr_err("Step 2 failed: %s\n", acpi_format_exception(status));
+			}
+			kfree(output2.pointer);
+
+			return count;
 		} else if (strcmp(cmd, "wmi20") == 0) {
 			/* Test current method ID 20 with different parameters */
 			acpi_status status;

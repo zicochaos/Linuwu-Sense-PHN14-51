@@ -236,6 +236,26 @@ Tested implementation from: https://github.com/JafarAkhondali/acer-predator-turb
 
 **Result**: ❌ **Keyboard turns off completely** (same as other static mode attempts)
 
+### Detailed 4-Byte Static Method Testing (2025-11-30)
+
+Tested exact JafarAkhondali payload structure with Method ID 6:
+
+```c
+u8 static_payload[4] = { zone, red, green, blue };
+wmi_evaluate_method(WMID_GUID4, 0, 6, &input, &output);  // Method ID 6
+```
+
+**Test Results:**
+| Zone Value | RGB | Response Code | Keyboard Result |
+|------------|-----|---------------|-----------------|
+| 0x0F (all) | 0,255,0 | 1 (rejected) | No change |
+| 0x01 (zone1) | 255,0,0 | 0 (success) | **Turns OFF** |
+| 0x02 (zone2) | 0,255,0 | 0 (success) | **Turns OFF** |
+| 0x04 (zone3) | 0,0,255 | 0 (success) | **Turns OFF** |
+| 0x08 (zone4) | 255,255,0 | 0 (success) | **Turns OFF** |
+
+**Conclusion**: Firmware accepts individual zone commands (returns 0) but **keyboard turns off instead of showing colors**. This proves the issue is in EC firmware, not the driver.
+
 ## EXPERIMENTAL FIX ATTEMPT (2025-11-16 Update - FAILED)
 
 ### Discovery of Alternative Solutions
@@ -292,6 +312,7 @@ STATIC mode (mode 0) is **permanently broken** at the EC firmware level and cann
 6. ✗ EC register manipulation - Changes detected but don't affect display
 7. ✗ JafarAkhondali method (WMI ID 6 + 20) - **Keyboard turns off**
 8. ✗ per_zone_mode - **Same issue, keyboard turns off**
+9. ✗ 4-byte static payload per-zone (2025-11-30) - Firmware returns SUCCESS but **keyboard turns off**
 
 ### Final Solution
 **BREATHE mode (mode 1) is the permanent workaround**. The `predator-keyboard` script has been configured to use BREATHE mode when "static" is requested. This provides:
@@ -306,7 +327,8 @@ STATIC mode (mode 0) is **permanently broken** at the EC firmware level and cann
 
 ---
 
-*Last Updated*: 2025-11-16
+*Last Updated*: 2025-11-30
 *Solution Tested*: Working reliably with BREATHE mode workaround
-*Kernel Version*: 6.17.7-5-cachyos
+*Kernel Version*: 6.17.9-2-cachyos
 *Module Version*: linuwu_sense (custom build)
+*Additional Testing*: 4-byte static method (JafarAkhondali approach) - confirmed firmware bug
