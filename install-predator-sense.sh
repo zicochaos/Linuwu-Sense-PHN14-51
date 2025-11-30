@@ -33,18 +33,27 @@ echo "Detected OS: $OS_NAME"
 echo "Kernel: $(uname -r)"
 echo ""
 
+# Ask about DKMS installation
+echo "Installation options:"
+echo "  1) DKMS (Recommended) - Auto-rebuilds on kernel updates"
+echo "  2) Manual - Requires rebuild after each kernel update"
+echo ""
+read -p "Choose installation method [1/2] (default: 1): " INSTALL_METHOD
+INSTALL_METHOD=${INSTALL_METHOD:-1}
+
 # Install dependencies based on distribution
+echo ""
 echo "Installing dependencies..."
 if [[ "$OS_NAME" == "pop" || "$OS_NAME" == "ubuntu" || "$OS_NAME" == "debian" ]]; then
     sudo apt update
     sudo apt install -y build-essential linux-headers-$(uname -r) dkms git
 elif [[ "$OS_NAME" == "cachyos" ]]; then
     echo "Installing CachyOS specific dependencies..."
-    sudo pacman -S --noconfirm linux-cachyos-headers base-devel git clang llvm
+    sudo pacman -S --noconfirm linux-cachyos-headers base-devel git clang llvm dkms
     export LLVM=1
     export CC=clang
 elif [[ "$OS_NAME" == "arch" || "$OS_NAME" == "manjaro" ]]; then
-    sudo pacman -S --noconfirm linux-headers base-devel git
+    sudo pacman -S --noconfirm linux-headers base-devel git dkms
 else
     echo "Warning: Unknown distribution $OS_NAME"
     echo "Please ensure kernel headers and build tools are installed"
@@ -55,33 +64,43 @@ else
     fi
 fi
 
-# Build module
+# Remove any existing modules
 echo ""
-echo "Building kernel module..."
-make clean
-if [[ "$OS_NAME" == "cachyos" ]]; then
-    # CachyOS uses LLVM/Clang for kernel modules
-    echo "Building with LLVM/Clang for CachyOS..."
-    env LLVM=1 make
-else
-    make
-fi
-
-# Install module
-echo ""
-echo "Installing kernel module..."
-# Remove any existing acer_wmi module
+echo "Removing any existing modules..."
 sudo rmmod acer_wmi 2>/dev/null || true
 sudo rmmod linuwu_sense 2>/dev/null || true
 
-# Install the module
-sudo install -d /lib/modules/$(uname -r)/kernel/drivers/platform/x86
-sudo install -m 644 src/linuwu_sense.ko /lib/modules/$(uname -r)/kernel/drivers/platform/x86/
-sudo depmod -a
+if [[ "$INSTALL_METHOD" == "1" ]]; then
+    # DKMS Installation
+    echo ""
+    echo "Installing with DKMS..."
+    sudo ./dkms-install.sh
+else
+    # Manual Installation
+    echo ""
+    echo "Building kernel module..."
+    make clean
+    if [[ "$OS_NAME" == "cachyos" ]]; then
+        # CachyOS uses LLVM/Clang for kernel modules
+        echo "Building with LLVM/Clang for CachyOS..."
+        env LLVM=1 make
+    else
+        make
+    fi
 
-# Load the module
-echo "Loading module..."
-sudo modprobe linuwu_sense || sudo insmod src/linuwu_sense.ko
+    echo ""
+    echo "Installing kernel module..."
+    # Install the module
+    sudo install -d /lib/modules/$(uname -r)/kernel/drivers/platform/x86
+    sudo install -m 644 src/linuwu_sense.ko /lib/modules/$(uname -r)/kernel/drivers/platform/x86/
+    sudo depmod -a
+fi
+
+# Load the module (DKMS install already loads it)
+if [[ "$INSTALL_METHOD" != "1" ]]; then
+    echo "Loading module..."
+    sudo modprobe linuwu_sense || sudo insmod src/linuwu_sense.ko
+fi
 
 # Install control scripts
 echo ""
@@ -95,11 +114,13 @@ sudo cp predator-preset /usr/local/bin/
 sudo cp predator-settings /usr/local/bin/
 sudo chmod +x /usr/local/bin/predator*
 
-# Configure module to load at boot
-echo ""
-echo "Configuring module to load at boot..."
-echo "linuwu_sense" | sudo tee /etc/modules-load.d/linuwu_sense.conf > /dev/null
-echo "blacklist acer_wmi" | sudo tee /etc/modprobe.d/blacklist-acer_wmi.conf > /dev/null
+# Configure module to load at boot (DKMS handles this automatically)
+if [[ "$INSTALL_METHOD" != "1" ]]; then
+    echo ""
+    echo "Configuring module to load at boot..."
+    echo "linuwu_sense" | sudo tee /etc/modules-load.d/linuwu_sense.conf > /dev/null
+    echo "blacklist acer_wmi" | sudo tee /etc/modprobe.d/blacklist-acer_wmi.conf > /dev/null
+fi
 
 # Optional systemd service
 echo ""
