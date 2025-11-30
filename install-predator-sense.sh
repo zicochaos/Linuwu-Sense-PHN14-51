@@ -37,7 +37,7 @@ echo ""
 echo "Installing dependencies..."
 if [[ "$OS_NAME" == "pop" || "$OS_NAME" == "ubuntu" || "$OS_NAME" == "debian" ]]; then
     sudo apt update
-    sudo apt install -y build-essential linux-headers-$(uname -r) dkms git gcc-12 g++-12
+    sudo apt install -y build-essential linux-headers-$(uname -r) dkms git
 elif [[ "$OS_NAME" == "cachyos" ]]; then
     echo "Installing CachyOS specific dependencies..."
     sudo pacman -S --noconfirm linux-cachyos-headers base-devel git clang llvm
@@ -92,6 +92,7 @@ sudo cp predator-fan /usr/local/bin/
 sudo cp predator-battery /usr/local/bin/
 sudo cp predator-keyboard /usr/local/bin/
 sudo cp predator-preset /usr/local/bin/
+sudo cp predator-settings /usr/local/bin/
 sudo chmod +x /usr/local/bin/predator*
 
 # Configure module to load at boot
@@ -164,6 +165,10 @@ echo "  predator-profile quiet       - 60W GPU limit"
 echo "  predator-profile balanced    - 80W GPU limit"
 echo "  predator-profile performance - 100W GPU limit"
 echo "  predator-profile turbo       - 125W GPU limit"
+echo ""
+echo "Settings persistence:"
+echo "  predator save                - Save current settings"
+echo "  predator auto-restore        - Enable auto-restore at boot"
 echo ""
 echo "Run 'predator help' for full command list"
 echo ""
