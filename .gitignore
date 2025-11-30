@@ -24,6 +24,9 @@ modules.order
 .vscode/
 .idea/
 
+# Claude Code settings
+.claude/
+
 # Kernel update logs
 kernel-update.log
 kernel-update.log.build
